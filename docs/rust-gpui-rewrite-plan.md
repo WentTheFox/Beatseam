@@ -442,7 +442,7 @@ Outcomes of the exit criteria above:
 
 | Decision | Outcome |
 | --- | --- |
-| Desktop UI | GPUI proceeds for Windows, provisionally: it works and exposes UI Automation, but the Narrator pass was skipped, so the accessibility release blocker is still open. Do the Narrator pass first thing in Phase 2b; if it fails, the decision comes back to the maintainer as the plan says. |
+| Desktop UI | GPUI proceeds for Windows, provisionally: it works and exposes UI Automation, but the Narrator pass was skipped and accessibility is deprioritized (see below). If a Narrator pass later fails, the decision comes back to the maintainer. |
 | Android UI | **Jetpack Compose + UniFFI.** GPUI on Android was not shown to meet the accessibility and IME bar (TalkBack skipped, non-Latin IME untried), and the UniFFI shape works (item 5). |
 | Web UI | Leptos (DOM), unchanged. File System Access, SQLite-wasm and the mixer in an `AudioWorklet` all work from Rust/wasm. |
 | Web storage | SQLite-wasm on OPFS with the `opfs-sahpool` VFS (see "Web storage decision"). |
@@ -466,7 +466,11 @@ Pinned for Phase 1 and later (from the spikes' lockfiles):
 Not done in Phase 0, carried forward (none changes a decision above, but each is a risk to retire early):
 
 * **Accessibility is unverified on both native targets** (Narrator for GPUI on Windows; TalkBack for whatever Android
-  ships). It stays a per-platform release blocker.
+  ships). The maintainer decided it is **not a first priority**: no Narrator or TalkBack pass is scheduled in Phase 1
+  or early Phase 2, and screen-reader work does not gate that work. The "Decisions" row (parity as a release blocker
+  per platform) is unchanged, so it still has to be met, or explicitly waived by the maintainer, before a Rust client
+  replaces the current one on a platform. Cheap habits that keep the door open: set roles and labels in every GPUI
+  element and use native Compose semantics, so the structural check in the parity suite can be turned on later.
 * **Android backgrounded audio** (foreground service plus the Rust mixer) and **backgrounded web audio** were not
   tested; the latter needs a manual pass.
 * **Measurements (item 7) are partial.** Windows GPUI numbers exist (10.3 MB executable, ~0.7 s cold start, 63 MB), as do
@@ -567,6 +571,6 @@ its conventions, and move `docs/api-compatibility.md`'s references from zod to t
 ## Open questions
 
 All product decisions so far are recorded under "Decisions". What remains is technical and is answered by the
-Phase 0 spike: whether GPUI meets the accessibility bar on Windows, whether Android uses GPUI or Compose, the web
-storage backend, and whether GPUI can render headlessly in CI for the parity suite. If GPUI fails the Windows
-accessibility check, the desktop UI choice comes back to the maintainer before Phase 2b starts.
+Phase 0 spike, which has now answered all of it except GPUI's Windows accessibility, which the maintainer deferred
+(not a first priority; see "Phase 0 exit"). If a later Narrator pass fails, the desktop UI choice comes back to the
+maintainer.
