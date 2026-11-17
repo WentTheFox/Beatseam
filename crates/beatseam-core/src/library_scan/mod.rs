@@ -10,6 +10,7 @@ mod find_unplaylisted_tracks;
 mod load_root_library;
 mod relocate_missing_track;
 mod scan;
+mod scan_coordinator;
 mod walk;
 
 pub use add_tracks_to_playlist::{AddPosition, add_tracks_to_playlist};
@@ -21,5 +22,6 @@ pub use error::LibraryError;
 pub use find_unplaylisted_tracks::{find_unplaylisted_tracks, find_unplaylisted_tracks_in_store};
 pub use load_root_library::{LoadRootLibraryOptions, LoadedRoot, load_root_library};
 pub use relocate_missing_track::relocate_missing_track;
+pub use scan_coordinator::{ScanCoordinator, ScanSubscription, describe_scan_progress};
 pub use scan::{ScanPhase, ScanProgress, ScanResult, UnresolvedEntry, describe_unresolved_entries, missing_track_id, scan_root};
 pub use walk::{MAX_CONCURRENT_LISTINGS, WalkProgress, WalkResult, walk_directory};
