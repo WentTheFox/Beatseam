@@ -1,4 +1,4 @@
-# Rewriting the Beatseam apps in Rust with GPUI
+# Rewriting Beatseam in Rust
 
 Status: **proposal / plan**. Nothing in this document is implemented yet. It covers the client apps and the server. The
 phases below are ordered so that each one ends in something shippable or in a clear go/no-go decision, and the existing
@@ -9,14 +9,17 @@ React Native apps keep shipping until each platform's Rust app reaches parity.
 * One Rust codebase for the client apps on **Android, Windows and web**. Desktop Linux and macOS come along almost for
   free, since they are GPUI's best-supported targets.
 * Share as much code as possible: playback, crossfade, analysis, library/playlist/lyrics logic, server-mode sync,
-  scrobbling *and* the UI itself. Per-platform code should be limited to thin adapters (file access, OS media
-  controls, secret storage, background execution), the same way `apps/mobile/src/adapters/*` works today but smaller.
+  scrobbling, and the view models (what each screen shows and which actions it offers). The rendering layer is shared
+  where GPUI qualifies (see "Decisions"); everywhere else only rendering is per platform, never logic. Per-platform
+  code should otherwise be limited to thin adapters (file access, OS media controls, secret storage, background
+  execution), the same way `apps/mobile/src/adapters/*` works today but smaller.
 * **Rewrite the server (`apps/server`) in Rust too.** This is a hard requirement for the web: the web app is served by
   the server, and the server's scanner, analysis and lyrics matching should be the same `beatseam-core` code the
   apps run, not a second TypeScript copy.
-* The **web UI** can be more lenient than the native ones: GPUI on wasm is preferred, but a different web UI is
-  acceptable as long as automated **visual parity tests** keep it looking like the other platforms (see "Visual
-  parity testing").
+* The **web UI** is a DOM UI in Rust (Leptos) rather than GPUI, held to the other platforms' look by automated
+  **visual parity tests** (see "Visual parity testing").
+* **No accessibility regression**: a Rust client replaces the current one on a platform only once screen readers can
+  do everything there that they can do in the current app.
 * Fix structural problems the current stack works around rather than solves (see "What we expect to gain").
 * Keep the wire format compatible in both directions throughout (`docs/api-compatibility.md` still applies). A Rust
   client is just another app release, and the Rust server is just another server release: old TS apps must keep
@@ -28,6 +31,21 @@ React Native apps keep shipping until each platform's Rust app reaches parity.
   but it is not planned.
 * New features. Parity first. The open TODOs in `CLAUDE.md` move over as TODOs, except where the new architecture
   closes them as a side effect (listed below).
+
+## Decisions
+
+Settled with the maintainer (November 2026):
+
+| Question | Decision | Consequence for the plan |
+| --- | --- | --- |
+| Server language | **Rust**, same routes, wire format and Postgres schema | `beatseam-server`, Phase 2a |
+| GPUI fork maintenance | **Minimal: consume the community backends as-is.** Pin revisions, no local patches; when a backend lacks something we need, take the fallback instead of fixing it ourselves. | Android may not use GPUI (see below); upstream GPUI is used where it is officially supported |
+| First client to ship | **Windows** (GPUI's official platform, and the weakest RN app today) | Phase 2b is Windows; Android and web follow |
+| Accessibility bar | **Parity with today**: whatever TalkBack/Narrator/browser screen readers can do in the current app must still work. A release blocker per platform. | Rules out canvas rendering on web; makes Android GPUI conditional; must be verified for GPUI on Windows too |
+| Web UI | **DOM-based, Leptos**, over the same wasm core. GPUI on wasm is not pursued (its canvas is invisible to screen readers). | `beatseam-web-ui` crate; design tokens exported as CSS custom properties |
+| Android UI if GPUI doesn't qualify | **Jetpack Compose + UniFFI**: native Kotlin UI with full TalkBack/IME support, Rust core and audio through UniFFI bindings | Decided by the Phase 0 spike; Compose is the likely outcome given the two rows above |
+| Visual parity strictness | **Tiered**: strict on playback-facing screens (now playing, crossfade art, track lists, mini player), looser on forms (settings, sign-in, dialogs) | Two threshold tiers in the parity suite |
+| Legacy `/api/roots` + `/library` routes | **Dropped**, not ported. Only the current TS web app's composite file access calls them, and it already treats their absence as "no server roots". `fileAccess.server.ts`/`fileAccess.composite.ts` are removed from the TS web app before the Rust server ships, so nothing calls them. | Smaller server port |
 
 ## Where we are today
 
@@ -58,11 +76,13 @@ This is the biggest risk in the whole plan, so it comes first.
 
 Consequences:
 
-1. Android and web depend on forks that track upstream GPUI at their own pace. We must **pin exact git revisions**,
-   expect to carry patches ourselves, and budget for maintaining (or contributing to) those backends.
-2. **Phase 0 is a go/no-go spike** on exactly those two platforms before any real porting happens. If either fails,
-   the fallback options are listed under "If the spike fails".
-3. GPUI's own API is not stable (pre-1.0, driven by Zed's needs). Pin a revision and upgrade deliberately, not
+1. **Web does not use GPUI** (see "Decisions"): accessibility parity rules out a canvas-rendered UI.
+2. **Android uses GPUI only if the community backend, used as-is, meets the accessibility and IME bar.** Otherwise
+   Android gets a Jetpack Compose UI over the shared Rust crates. Phase 0 decides this before any Android UI work.
+3. **Windows accessibility must be verified too.** GPUI has AccessKit-based plumbing (UI Automation on Windows), but
+   it is unconfirmed how much of it upstream GPUI exposes today; one fork notes Zed itself sets no accessibility
+   properties on its elements. Phase 0 checks Narrator on a GPUI list, buttons and a slider.
+4. GPUI's own API is not stable (pre-1.0, driven by Zed's needs). Pin a revision and upgrade deliberately, not
    continuously.
 
 ## Target architecture
@@ -76,15 +96,18 @@ crates/
   beatseam-core/           # all platform-independent logic, no GPUI dependency
   beatseam-audio/          # decoding (symphonia) + our own mixer/crossfade engine
   beatseam-platform/       # traits for every platform seam + shared helpers
-  beatseam-ui/             # GPUI views/components, theme, icons, navigation
-  beatseam-app/            # the binary/cdylib: wires platform impls into core + ui
+  beatseam-viewmodel/      # per-screen view models + actions, design tokens, fixture rendering hooks (no UI toolkit)
+  beatseam-ui/             # GPUI views/components (desktop, and Android if it qualifies)
+  beatseam-web-ui/         # Leptos views/components (web)
+  beatseam-ffi/            # UniFFI bindings to core/audio/viewmodel for the Compose UI (only if Android isn't GPUI)
+  beatseam-app/            # the desktop binary: wires platform impls into core + ui
   platform-desktop/        # Windows/Linux/macOS impls (std::fs, rusqlite, SMTC/MPRIS, keyring, Discord IPC pipe)
   platform-android/        # JNI glue; reuses the existing Kotlin modules where they make sense
   platform-web/            # wasm-bindgen/web-sys impls (FS Access API, OPFS, IndexedDB/SQLite-wasm, Media Session)
   beatseam-server/         # axum server binary (replaces apps/server)
   beatseam-fixtures/       # deterministic app states + seeded libraries for tests and visual parity (see below)
-apps/android-shell/        # minimal Gradle project: Activity hosting the GPUI surface + foreground service + Kotlin modules
-apps/web-shell/            # index.html, service worker/PWA manifest, wasm build script
+apps/android/              # Gradle project: Compose UI (or an Activity hosting the GPUI surface) + foreground service + Kotlin modules
+apps/web-shell/            # index.html, service worker/PWA manifest, Leptos/wasm build (trunk)
 ```
 
 ### Layering rules
@@ -94,9 +117,12 @@ apps/web-shell/            # index.html, service worker/PWA manifest, wasm build
   immune to GPUI churn.
   Async work goes through a small `Spawner`/`Clock` trait the app supplies (GPUI's executors natively,
   `wasm-bindgen-futures` on web), because on wasm we cannot assume threads.
-* **`beatseam-ui` is the only crate that depends on GPUI.** It renders core state and dispatches actions; it holds no
-  business logic. This replaces both `packages/ui` and the two large inline `App.tsx` files, so the "keep
-  `apps/mobile/App.tsx` and `apps/web/src/App.tsx` in sync" problem disappears by construction: there is one app root.
+* **`beatseam-viewmodel` holds everything a screen needs except drawing it**: derived display data (formatted
+  titles, durations, "Playing now on <device>", lyrics line states, crossfade art angles/spin speeds), the actions
+  each control dispatches, navigation, and the design tokens. Every UI (GPUI, Leptos, Compose via UniFFI) is a thin
+  renderer of these view models, holding no business logic. This is what keeps three renderers from drifting the way
+  `apps/mobile/App.tsx` and `apps/web/src/App.tsx` drift today: the shape of each screen is defined once.
+* **`beatseam-ui` is the only crate that depends on GPUI**, `beatseam-web-ui` the only one that depends on Leptos.
 * Platform crates implement `beatseam-platform` traits and nothing else. `#[cfg(target_os = ...)]`/`#[cfg(target_arch
   = "wasm32")]` belongs in those crates and in `beatseam-app`, not sprinkled through core or UI.
 
@@ -108,8 +134,9 @@ settings) becomes a set of plain Rust state structs with explicit action enums a
 GPUI `Entity`, and views subscribe to the entities they read (GPUI's `cx.notify()`/`observe` replaces `useSelector`).
 Thunks become async functions in core that take the platform services and an action sink.
 
-We deliberately do not let GPUI's `Entity` types leak into core; the adapter between "core state + actions" and
-"GPUI entities" lives in `beatseam-ui`.
+We deliberately do not let GPUI's `Entity` types leak into core or the view models; the adapter between "core state
++ actions" and "GPUI entities" lives in `beatseam-ui`. On web the same state is exposed as Leptos signals in
+`beatseam-web-ui`, and for Compose as observable `StateFlow`s through UniFFI callbacks.
 
 ### Audio: own the mixer
 
@@ -149,12 +176,12 @@ gain curves, `now()`), so `PlaylistPlayer`/`TrackPlayer`/preload scheduling port
 | Discord rich presence | named pipe / Unix socket IPC (`discord-ipc-0`), protocol from `richPresence.ts` ported to core | existing Kotlin binder module over JNI | not supported (as today) |
 | Background execution | n/a | foreground service keeps the process alive; Rust timers are not paused like RN's JS timers | n/a |
 | Cover art resizing | `image` crate | `image` crate | `image` crate (wasm) |
-| Icons | MDI SVG paths rendered by GPUI's SVG support | same | same |
+| Icons | MDI SVG paths rendered by GPUI's SVG support | same (GPUI), or `ImageVector`s generated from the same paths (Compose) | inline SVG from the same paths |
 | App update check | GitHub releases (core) + open URL | existing `AppUpdateModule.kt` via JNI | n/a (PWA update) |
 
-On Android the shell stays a small Kotlin project: an `Activity` hosting the GPUI surface (as `gpui-mobile` does), the
-foreground playback service, the `MediaSession`, and the Kotlin modules we keep. Everything else moves into the Rust
-`cdylib` loaded by that activity.
+On Android the Kotlin project holds the UI (Compose, or an `Activity` hosting the GPUI surface if GPUI qualifies),
+the foreground playback service, the `MediaSession`, and the Kotlin modules we keep. All logic, audio and the view
+models live in the Rust `cdylib`; with Compose, Kotlin talks to it only through the generated UniFFI bindings.
 
 ### The wire format
 
@@ -202,25 +229,22 @@ tests that reach into the Nest app in-process (the injectable TOTP clock, the sc
 Rust server (e.g. a clock override endpoint compiled only with a `test-hooks` feature). Old-app compatibility is
 covered the same way: the current TS `ApiClient` tests (`apiClient.test.ts`) run against the Rust server too.
 
-### The web UI and its fallback
+### The web UI
 
-The web client always uses the shared Rust crates (`beatseam-core`, `beatseam-api`, `beatseam-audio` compiled to
-wasm). Only the UI layer is negotiable:
-
-1. **Preferred: GPUI on wasm**, the same `beatseam-ui` as everywhere else, if the Phase 0 spike shows it is workable.
-2. **Fallback: a DOM-based web UI** on top of the same wasm core, e.g. Leptos or Dioxus (both Rust), with a
-   view-model layer in `beatseam-ui` that both UIs consume, so only rendering is duplicated, never logic.
-
-Either way, the web UI is held to the other platforms' look by the visual parity tests below rather than by sharing
-rendering code.
+The web client runs the shared Rust crates (`beatseam-core`, `beatseam-api`, `beatseam-audio`,
+`beatseam-viewmodel`) compiled to wasm, with a **Leptos** UI (`beatseam-web-ui`) rendering real DOM. That gives screen
+readers, browser text input/IME, text selection, find-in-page and native scrolling for free, and Leptos's
+fine-grained signals map directly onto the view models. The design tokens are generated as CSS custom properties, and
+icons are inline SVG from the same MDI paths. The visual parity tests below hold it to the GPUI look.
 
 ### Visual parity testing
 
 To make "the web UI may differ in implementation but must not drift in appearance" enforceable:
 
 * **Shared design tokens.** Colors (all four themes and the accent palette), spacing, radii, font sizes and icon
-  sizes live in one Rust module. GPUI reads them directly; a DOM UI gets them generated as CSS custom properties. Most
-  drift is a token copied by hand, so this removes the most common cause.
+  sizes live in `beatseam-viewmodel`. GPUI reads them directly, Leptos gets them generated as CSS custom properties,
+  Compose (if used) as a generated Kotlin theme object. Most drift is a token copied by hand, so this removes the
+  most common cause.
 * **Fixture states.** `beatseam-fixtures` defines a catalog of deterministic app states built from the core state
   types: empty library, onboarding, a library with a seeded playlist, a long track list, now playing with synced
   lyrics mid-line, the crossfade between two tracks at a fixed progress, settings in each theme, server sign-in,
@@ -228,17 +252,23 @@ To make "the web UI may differ in implementation but must not drift in appearanc
   random ids, cover art and fonts are fixed, and animations are frozen at a given timestamp, so a state renders
   identically every run.
 * **Per-platform baselines.** Each UI renders every fixture state to PNG in CI: GPUI headlessly on Linux (offscreen
-  rendering; confirming GPUI can do this in CI is part of Phase 0), and the web build in Playwright's Chromium
+  rendering; confirming GPUI can do this in CI is part of Phase 0), and the Leptos build in Playwright's Chromium
   (already installed in CI images) at the same viewport sizes. Each is compared with approved baselines checked into
   the repo; an intended change updates the baseline in the same PR, so reviewers see the before/after images.
 * **Cross-platform parity check.** The web screenshots are additionally compared with the GPUI desktop screenshots of
   the same fixture state with a perceptual metric (SSIM or a per-region tolerance) rather than exact pixels, since
   text rasterization and antialiasing will never match exactly between renderers. A drop below the threshold fails
-  CI with a diff image. Thresholds are tuned per fixture once the first pair of baselines exists.
+  CI with a diff image. Two threshold tiers: **strict** for playback-facing states (now playing, crossfade art, track
+  lists, mini player, lyrics) and **loose** for forms (settings, sign-in, dialogs, onboarding), where native and web
+  controls may reasonably differ. Each fixture declares its tier; the thresholds themselves are tuned once the first
+  pair of baselines exists.
 * **Structural checks** catch what images miss: each fixture also emits the list of visible text strings and
-  interactive elements (labels, buttons, their order), and those must be identical across platforms.
+  interactive elements (labels, roles, their order), taken from the platform accessibility tree (UI Automation for
+  GPUI on Windows, the DOM accessibility tree via Playwright, Compose's semantics tree via its test APIs), and those
+  must be identical across platforms. This doubles as the **accessibility regression test**: a control that loses its
+  label or role on one platform fails the check.
 * Android gets the same fixtures captured on an emulator in a nightly job (not per PR, since it is slow), compared
-  with the GPUI desktop baselines.
+  with the GPUI desktop baselines (Compose screenshot tests make this cheap if Android ends up on Compose).
 
 ## What we expect to gain
 
@@ -264,12 +294,13 @@ Concrete things in `CLAUDE.md` that the new architecture closes or makes simpler
 
 What we lose or must re-earn:
 
-* **Accessibility.** RN maps to native accessibility trees on Android; GPUI's accessibility support is limited and
-  the mobile fork lists it as incomplete. This is a real regression risk and is part of the Phase 0 evaluation.
-* **Text input / IME on Android** (search boxes, lyrics editor, playlist names) is listed as incomplete in the mobile
-  fork. The lyrics editor depends on it.
-* Native look and platform conventions (scroll physics, long-press, haptics, back gesture) are ours to implement.
-* Web bundle size and first load: a GPUI wasm app is several MB. Needs measuring; PWA caching softens it.
+* **One shared renderer.** Today `packages/ui` renders on every platform. With web on Leptos (and likely Android on
+  Compose), rendering is written two or three times. The shared view models, design tokens and the visual parity
+  suite are what make that acceptable; they are not optional.
+* **Accessibility on GPUI** has to be verified on Windows (and Android, if GPUI is used there) rather than assumed.
+* On the GPUI side, native platform conventions (scroll physics, long-press, keyboard focus) are ours to implement.
+* Web bundle size: the wasm core (symphonia, lofty, analysis) is likely 1-3 MB compressed. Needs measuring; PWA
+  caching softens it.
 * Fast iteration: Metro/Vite hot reload is replaced by Rust rebuilds. Desktop iteration is fine; Android/web rebuild
   loops are slower and need good scripts.
 * jsmediatags is replaced by `lofty` (or symphonia's metadata) for tags, cover art and embedded lyrics (`USLT`; `SYLT`
@@ -277,34 +308,29 @@ What we lose or must re-earn:
 
 ## Phases
 
-### Phase 0: spike and go/no-go (Android + web first, deliberately)
+### Phase 0: spike and go/no-go
 
-Desktop is the low-risk platform, so the spike targets the two that might not work at all. Build one throwaway app
-that does, on **Android (arm64 phone, the existing test device)** and **web (Chromium + Firefox)**:
+Build throwaway apps that answer the open technical questions before any real porting:
 
-1. A GPUI window with a scrolling list of ~5k rows, a text input with IME (test a non-Latin keyboard), a custom-drawn
-   rotating record + tonearm, and a slider. Check frame rate and touch handling (scroll fling, long press).
-2. `cpal` + `symphonia` playing two local files with an equal-power crossfade from our own mixer, while the app is
-   backgrounded on Android (foreground service) and while the tab is in the background on web.
-3. Reading a file through SAF (Android) and through the File System Access API (web).
-4. Measure: cold start time, press-to-first-sound, APK size, wasm size, memory.
-5. Check what the platform accessibility tree exposes (TalkBack on Android, screen reader on web).
-6. Render one view headlessly to PNG on a Linux CI runner (no GPU, no display) and the same view in Playwright on the
-   web build, and run the perceptual comparison on the pair. This proves the visual parity pipeline is possible
-   before anything depends on it.
+1. **GPUI on Windows** (must pass, Windows ships first): a scrolling list of ~5k rows, a text input, a custom-drawn
+   rotating record + tonearm, a slider. Check that **Narrator** can reach, name and operate every one of them through
+   UI Automation. If it can't, this is the one result that reopens the UI decision for desktop, so it comes first.
+2. **GPUI on Android, community backend used as-is**: the same view on the test phone, checked against the bar:
+   TalkBack can operate everything, IME works with a non-Latin keyboard, scroll fling and long press feel native.
+   Anything short of that means **Android goes Compose + UniFFI**, with no attempt to patch the backend.
+3. **Audio**: `cpal` + `symphonia` playing two local files with an equal-power crossfade from our own mixer, on
+   Windows, on Android while backgrounded (foreground service), and on web in an `AudioWorklet` while the tab is in the
+   background.
+4. **File access**: SAF (Android) and the File System Access API (web) from Rust.
+5. **UniFFI round trip** (only if item 2 failed): a Compose screen observing a Rust view model, with actions flowing
+   back, to confirm the binding shape before Phase 3.
+6. **Visual parity pipeline**: render one view headlessly to PNG with GPUI on a Linux CI runner (no GPU, no display)
+   and the same view from a Leptos build in Playwright, run the perceptual comparison on the pair, and extract both
+   accessibility trees for the structural check.
+7. Measure: cold start, press-to-first-sound, installer/APK size, wasm size, memory.
 
-Exit criteria: all of the above work, or have a credible fix path we are willing to own. Decide the web storage
-option (SQLite-wasm vs IndexedDB) and pin the GPUI and backend revisions. Record the outcome in this document.
-
-#### If the spike fails
-
-* **Web fails, Android works**: use the DOM-based web UI fallback (Leptos or Dioxus over the same wasm core, see "The
-  web UI and its fallback"), held to the GPUI look by the visual parity tests. The Rust server is unaffected.
-* **Android fails**: same idea in reverse: share `beatseam-core` + `beatseam-audio` through JNI/UniFFI under the
-  existing RN UI (or a Kotlin UI), and use GPUI on desktop only.
-* **Both fail**: GPUI for desktop only, the DOM fallback for web, and evaluate a UI toolkit with first-party Android
-  support for the rest. The core/audio crates and the server are useful under any of these outcomes, which is why
-  Phase 1 and the server port do not depend on GPUI.
+Exit: record the results here, pin the GPUI revision (and the Android backend's, if used), decide the web storage
+option (SQLite-wasm vs IndexedDB), and mark Android as GPUI or Compose.
 
 ### Phase 1: `beatseam-core`, `beatseam-api`, `beatseam-audio` (no UI)
 
@@ -322,6 +348,9 @@ Port in dependency order, porting the matching Vitest tests along with each modu
 5. State + actions (port of the store slices and thunks, including the latency-sensitive `restorePlayback` path and its
    rule: only the last-played root/playlist and the current track's lyrics block startup).
 
+6. `beatseam-viewmodel`: per-screen view models, actions and design tokens, tested without any UI toolkit, and
+   `beatseam-fixtures` built on them.
+
 Deliverable: a small CLI (`beatseam-cli`) that scans a folder, plays a playlist with crossfades, and syncs against a
 real server. Useful for debugging forever after, and proof that core works without a UI.
 
@@ -334,33 +363,38 @@ real server. Useful for debugging forever after, and proof that core works witho
    invites, device-code grants, passkeys), then library/tracks/covers/audio streaming (including range requests),
    sync + mutations + user data, lyrics (serving, editing, reports), Last.fm, scanner + job queue, account pages,
    static web hosting.
-3. Compatibility tests specific to the switch: verify password hashes, sealed Last.fm sessions, device tokens and
+3. Before the switch, remove `fileAccess.server.ts`/`fileAccess.composite.ts` from the TS web app (the legacy
+   `/api/roots` + `/library` routes are not ported) and ship that, so no client calls them any more.
+4. Compatibility tests specific to the switch: verify password hashes, sealed Last.fm sessions, device tokens and
    passkeys created by the TS server, and switch a copy of a real database back and forth between the two images.
-4. Ship as the Docker image once the whole conformance suite passes. Keep the TS image buildable for one release as
+5. Ship as the Docker image once the whole conformance suite passes. Keep the TS image buildable for one release as
    the rollback path.
 
 ### Phase 2b: desktop app (Windows first, Linux in CI)
 
 Build `beatseam-ui` and `platform-desktop`: library, playlist/track lists, now playing with `CrossfadeArt` and synced
 lyrics, settings, server sign-in (device code flow), offline downloads, lyrics picker/editor/sync screen, onboarding,
-notifications center, the 3-tier responsive layout. The design tokens, `beatseam-fixtures` and the GPUI baseline
-screenshots are built here, alongside the views they cover. Ship it as the Windows build once it reaches parity with the RNW
-app (which is the weakest RN platform today, so the bar is lowest and the gain is highest). MSIX packaging for the
-Store job in `native-builds.yml`.
+notifications center, the 3-tier responsive layout. The GPUI baseline screenshots and accessibility trees are built
+here, alongside the views they cover. Ship it as the Windows build once it reaches feature parity with the RNW app
+and passes the accessibility bar (Narrator). MSIX packaging for the Store job in `native-builds.yml`.
 
 ### Phase 3: Android
 
-`platform-android` + `apps/android-shell`. Port or keep the Kotlin modules behind JNI. Install side by side with the
-release build (separate application id suffix, as the debug build does today) until parity, then switch the release
-pipeline. Verify live on the test phone: backgrounded playback, media notification, Discord, Last.fm, offline
-downloads, lyrics sync gestures.
+`platform-android` + `apps/android`, with a Compose UI over `beatseam-ffi` (or `beatseam-ui` on GPUI, if Phase 0
+qualified it). Keep the Kotlin modules that are already Kotlin (MediaSession, Discord binder, Keystore, app update)
+and call them directly from the Kotlin side; SAF file access and offline downloads move behind the Rust `FileAccess`
+trait. Compose screenshot tests join the parity suite. Install side by side with the release build (separate
+application id suffix, as the debug build does today) until parity, then switch the release pipeline. Verify live on
+the test phone: backgrounded playback, media notification, Discord, Last.fm, offline downloads, lyrics sync gestures,
+and a full TalkBack pass.
 
 ### Phase 4: web
 
-`platform-web` + `apps/web-shell`, with GPUI or the DOM fallback depending on Phase 0. Depends on Phase 2a: the
+`platform-web`, `beatseam-web-ui` (Leptos) and `apps/web-shell`. Depends on Phase 2a: the
 Rust server serves the web app from the same origin (cookie session, `connectSameOrigin`), so the web build is
 shipped inside the `beatseam-server` image. Browser-picked local folders keep using the File System Access API
-(Chromium only, as today). The web UI ships only once the visual parity suite passes for every fixture state.
+(Chromium only, as today). The web UI ships only once the visual parity suite passes for every fixture state and a
+screen reader pass (NVDA or VoiceOver) matches today's app.
 
 ### Phase 5: retire TypeScript
 
@@ -376,24 +410,18 @@ its conventions, and move `docs/api-compatibility.md`'s references from zod to t
 * `rust-toolchain.toml` pinning a stable toolchain; targets `x86_64-pc-windows-msvc`, `x86_64-unknown-linux-gnu`,
   `aarch64-linux-android`, `wasm32-unknown-unknown`.
 * CI adds a Rust job: `cargo fmt --check`, `cargo clippy`, `cargo test --workspace` (core/api/audio run headless),
-  plus build-only jobs for Android (`cargo ndk`) and wasm (`wasm-bindgen`/`trunk`) once those phases start.
+  plus build-only jobs for Android (`cargo ndk`, Gradle) and wasm (`trunk`) once those phases start.
 * A server job runs the conformance suite against both servers (Postgres service container, as the current server
   tests already need).
-* A visual parity job renders the fixture states for GPUI (headless) and web (Playwright), uploads diff images as
-  artifacts on failure.
+* A visual parity job renders the fixture states for GPUI (headless) and Leptos (Playwright), runs the structural
+  and accessibility-tree checks, and uploads diff images as artifacts on failure.
 * The existing pnpm jobs keep running unchanged until Phase 5.
-* GPUI and the community backends are pinned by git revision in `Cargo.toml`; upgrades are their own PRs.
+* GPUI (and the Android backend, if used) is pinned by git revision in `Cargo.toml`; upgrades are their own PRs. No
+  local patches to it (see "Decisions").
 
-## Open questions for the maintainer
+## Open questions
 
-Settled: the server is rewritten in Rust (required for the web), and the web UI may differ in implementation as long
-as visual parity tests hold it to the other platforms' look.
-
-1. How much fork maintenance on GPUI's Android/web backends are we willing to take on?
-2. Should Windows ship first (lowest bar, biggest win), or should Android lead since it is the most-used client? The
-   server can proceed independently of that choice.
-3. Accessibility: what is the minimum acceptable level for a release (TalkBack-navigable transport and lists)?
-4. Visual parity strictness: which fixture states must match closely (e.g. now playing, track lists) and where are
-   looser thresholds fine (e.g. settings forms, where native vs web controls may reasonably differ)?
-5. Can the legacy `/api/roots` + `/library` routes be dropped when the server switches to Rust, or does something
-   still depend on them?
+All product decisions so far are recorded under "Decisions". What remains is technical and is answered by the
+Phase 0 spike: whether GPUI meets the accessibility bar on Windows, whether Android uses GPUI or Compose, the web
+storage backend, and whether GPUI can render headlessly in CI for the parity suite. If GPUI fails the Windows
+accessibility check, the desktop UI choice comes back to the maintainer before Phase 2b starts.
