@@ -376,7 +376,12 @@ patches; full notes in that folder's README):
   real-time playback through WASAPI ran with no stream errors and a worst callback of 17 us (0.1% of its buffer).
 * Two things for the real engine: two loud tracks summed mid-fade peaked at 1.27, so normalization or a limiter is
   required; and the spike only does f32 output, linear resampling and whole-clip decoding.
-* Listened to by the maintainer: sounded fine. Not yet done on Android (backgrounded, foreground service) or web (`AudioWorklet`).
+* Listened to by the maintainer: sounded fine. Not yet done on Android (backgrounded, foreground service).
+* Web (`spikes/web-audio`): the same `mixer.rs`, compiled to a 29 KB wasm module with no imports, runs in an
+  `AudioWorklet` (C ABI, no wasm-bindgen glue; the main thread passes the bytes in). Output matches the formula with no
+  loudness dip across the fade, and a 128-frame quantum costs about 1 us against a 2.7 ms budget. Backgrounded tabs could
+  not be tested with Playwright (pages always report visible); that check is left to a manual pass. Real playback should
+  stream decoded chunks to the worklet rather than load whole tracks into wasm memory.
 
 **Item 6, visual parity pipeline** (spikes `parity-gpui`, `parity-web`, `parity-compare`; full notes in
 `spikes/parity-gpui/README.md`):
