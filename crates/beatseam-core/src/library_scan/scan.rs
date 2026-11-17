@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use super::error::ScanError;
+use super::error::LibraryError;
 use super::walk::{WalkProgress, walk_directory};
 use crate::file_access::{CallOptions, FileAccess};
 use crate::library_store::{LibraryStore, PlaylistRecord, TrackRecord};
@@ -72,8 +72,8 @@ fn playlist_name(file_name: &str) -> String {
     file_name.chars().take(keep).collect()
 }
 
-fn check_cancelled(signal: Option<&AbortSignal>) -> Result<(), ScanError> {
-    if signal.is_some_and(AbortSignal::is_aborted) { Err(ScanError::Cancelled) } else { Ok(()) }
+fn check_cancelled(signal: Option<&AbortSignal>) -> Result<(), LibraryError> {
+    if signal.is_some_and(AbortSignal::is_aborted) { Err(LibraryError::Cancelled) } else { Ok(()) }
 }
 
 /// Walks a granted root, parses every playlist found in it, and resolves each playlist's entries against the files
@@ -85,7 +85,7 @@ fn check_cancelled(signal: Option<&AbortSignal>) -> Result<(), ScanError> {
 /// a no-op at the store level.
 ///
 /// `signal`, when given, lets a caller cancel a scan in progress - checked between the walk, each playlist file read,
-/// and before committing to the store, failing with [`ScanError::Cancelled`] as soon as it fires. Prefer the scan
+/// and before committing to the store, failing with [`LibraryError::Cancelled`] as soon as it fires. Prefer the scan
 /// coordinator over calling this directly from UI code - it also de-dupes concurrent scans of the same root, which this
 /// function alone doesn't guard against.
 ///
@@ -97,7 +97,7 @@ pub async fn scan_root<F: FileAccess, S: LibraryStore>(
     root_id: &str,
     signal: Option<&AbortSignal>,
     mut on_progress: Option<&mut dyn FnMut(ScanProgress)>,
-) -> Result<ScanResult, ScanError> {
+) -> Result<ScanResult, LibraryError> {
     // Read upfront, before this scan writes anything - see the stale-track cleanup pass at the end for what this is for.
     let existing_tracks = store.list_tracks(root_id).await?;
 
@@ -219,7 +219,7 @@ mod tests {
     use crate::library_store::MemoryLibraryStore;
     use crate::tasks::AbortHandle;
 
-    fn scan(fa: &MemoryFileAccess, store: &MemoryLibraryStore) -> Result<ScanResult, ScanError> {
+    fn scan(fa: &MemoryFileAccess, store: &MemoryLibraryStore) -> Result<ScanResult, LibraryError> {
         block_on(scan_root(fa, store, "root-1", None, None))
     }
 
@@ -328,7 +328,7 @@ mod tests {
         let handle = AbortHandle::new();
         handle.abort();
         let signal = handle.signal();
-        assert_eq!(block_on(scan_root(&fa, &store, "root-1", Some(&signal), None)), Err(ScanError::Cancelled));
+        assert_eq!(block_on(scan_root(&fa, &store, "root-1", Some(&signal), None)), Err(LibraryError::Cancelled));
         assert!(store.snapshot_tracks().is_empty() && store.snapshot_playlists().is_empty());
     }
 
@@ -372,7 +372,7 @@ mod tests {
         };
         let store = MemoryLibraryStore::new();
         let signal = handle.signal();
-        assert_eq!(block_on(scan_root(&fa, &store, "root-1", Some(&signal), None)), Err(ScanError::Cancelled));
+        assert_eq!(block_on(scan_root(&fa, &store, "root-1", Some(&signal), None)), Err(LibraryError::Cancelled));
         assert!(store.snapshot_tracks().is_empty() && store.snapshot_playlists().is_empty());
     }
 
@@ -417,7 +417,7 @@ mod tests {
         }
         let fa = Unreadable(MemoryFileAccess::new([("Mix.m3u8", "Track.mp3")]));
         let result = block_on(scan_root(&fa, &MemoryLibraryStore::new(), "root-1", None, None));
-        assert_eq!(result, Err(ScanError::FileAccess(FileAccessError::Io("disk on fire".into()))));
+        assert_eq!(result, Err(LibraryError::FileAccess(FileAccessError::Io("disk on fire".into()))));
     }
 
     #[test]

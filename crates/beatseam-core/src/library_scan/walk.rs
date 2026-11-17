@@ -3,7 +3,7 @@ use std::collections::VecDeque;
 use futures_util::StreamExt;
 use futures_util::stream::FuturesUnordered;
 
-use super::error::ScanError;
+use super::error::LibraryError;
 use crate::file_access::{CallOptions, EntryKind, FileAccess, FileRef};
 use crate::tasks::AbortSignal;
 
@@ -65,7 +65,7 @@ pub async fn walk_directory<F: FileAccess>(
     start_path: Option<&str>,
     signal: Option<&AbortSignal>,
     mut on_progress: Option<&mut dyn FnMut(WalkProgress)>,
-) -> Result<WalkResult, ScanError> {
+) -> Result<WalkResult, LibraryError> {
     let mut result = WalkResult::default();
     let mut folders_listed = 0;
     // An empty start path is the root itself, passed as `None` (not `Some("")`): some adapters key their root entry by
@@ -77,14 +77,14 @@ pub async fn walk_directory<F: FileAccess>(
         while in_flight.len() < MAX_CONCURRENT_LISTINGS {
             let Some(dir) = pending.pop_front() else { break };
             if cancelled(signal) {
-                return Err(ScanError::Cancelled);
+                return Err(LibraryError::Cancelled);
             }
             in_flight.push(async move { file_access.list_directory(root_id, dir.as_deref(), CallOptions::default()).await });
         }
         let Some(listing) = in_flight.next().await else { break };
         let entries = listing?;
         if cancelled(signal) {
-            return Err(ScanError::Cancelled);
+            return Err(LibraryError::Cancelled);
         }
         for entry in entries {
             match entry.kind {
@@ -223,7 +223,7 @@ mod tests {
         let (pool, f, signal) = (Pool::new(), fa.clone(), handle.signal());
         let result = pool.spawn(async move { walk_directory(&*f, "r", None, Some(&signal), None).await });
         pool.run_until_stalled();
-        assert_eq!(result.take(), Some(Err(ScanError::Cancelled)));
+        assert_eq!(result.take(), Some(Err(LibraryError::Cancelled)));
         assert_eq!(fa.calls.get(), 0);
     }
 

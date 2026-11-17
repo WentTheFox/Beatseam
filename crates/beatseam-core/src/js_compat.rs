@@ -20,9 +20,42 @@ pub fn js_round(x: f64) -> f64 {
     (x + 0.5).floor()
 }
 
+/// An approximation of `String.prototype.localeCompare` (the default-locale ICU collation) for sorting display text.
+/// Real collation needs Unicode collation data (ICU4X's `icu_collator` is the Rust way and can replace this behind the
+/// same signature); this covers what the TypeScript's sorts rely on in practice:
+///
+/// * letters compare case-insensitively first (`"a" < "B"`), and only when two strings are equal ignoring case does a
+///   lower-case letter sort before its upper-case twin, as ICU does at its tertiary level;
+/// * everything else compares by code point.
+///
+/// It does not fold accents (`"é"` sorts after `"z"`, ICU puts it with `"e"`) and does not reorder punctuation relative
+/// to digits and letters.
+pub fn js_locale_compare(a: &str, b: &str) -> std::cmp::Ordering {
+    let primary = a.chars().flat_map(char::to_lowercase).cmp(b.chars().flat_map(char::to_lowercase));
+    primary.then_with(|| {
+        // Tertiary: at the first character that differs (only in case, since the primary comparison was equal), the
+        // lower-case one sorts first.
+        match a.chars().zip(b.chars()).find(|(x, y)| x != y) {
+            Some((x, _)) if x.is_lowercase() => std::cmp::Ordering::Less,
+            Some(_) => std::cmp::Ordering::Greater,
+            None => std::cmp::Ordering::Equal,
+        }
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::cmp::Ordering;
+
+    #[test]
+    fn locale_compare_orders_case_insensitively_then_lowercase_first() {
+        let mut words = vec!["banana", "Apple", "apple", "Cherry", "apple pie", "Banana"];
+        words.sort_by(|a, b| js_locale_compare(a, b));
+        assert_eq!(words, ["apple", "Apple", "apple pie", "banana", "Banana", "Cherry"]);
+        assert_eq!(js_locale_compare("a", "a"), Ordering::Equal);
+        assert_eq!(js_locale_compare("", "a"), Ordering::Less);
+    }
 
     #[test]
     fn whitespace_is_exactly_the_set_node_reports() {
