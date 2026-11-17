@@ -375,7 +375,7 @@ patches; full notes in that folder's README):
   real-time playback through WASAPI ran with no stream errors and a worst callback of 17 us (0.1% of its buffer).
 * Two things for the real engine: two loud tracks summed mid-fade peaked at 1.27, so normalization or a limiter is
   required; and the spike only does f32 output, linear resampling and whole-clip decoding.
-* Not checked by ear, and not yet done on Android (backgrounded, foreground service) or web (`AudioWorklet`).
+* Listened to by the maintainer: sounded fine. Not yet done on Android (backgrounded, foreground service) or web (`AudioWorklet`).
 ### Phase 1: `beatseam-core`, `beatseam-api`, `beatseam-audio` (no UI)
 
 Port in dependency order, porting the matching Vitest tests along with each module (the tests are the spec):

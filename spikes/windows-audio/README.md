@@ -21,7 +21,7 @@ through the default output device.
 | Decode (symphonia 0.6.1, MP3) | 40 s of a 4.8 MB and a 7.9 MB MP3 in 325 ms / 115 ms (release, files on the Proton Drive folder); 14 s in 14 ms warm |
 | Offline render, real tracks | RMS stays smooth through a 6 s fade (no dip, no bump). Peak reached 1.27 mid-fade: two loud tracks summed clip without normalization or a limiter, which the real engine needs |
 | Real-time playback (cpal 0.18, WASAPI) | 20.0 s of audio played in 20.4 s wall clock (0.3 s is the deliberate buffer drain); 2036 callbacks; worst callback 17 us, 0.1% of its buffer time; no stream errors |
-| Heard by a person | **Not checked.** The run was verified by numbers only; whether it sounds right needs a listen |
+| Heard by a person | The maintainer listened to the real-time run and it sounded fine (no glitches or level dip reported) |
 
 What the spike is not: resampling is linear (here source and output were both 48 kHz, so it never ran), decoding is
 whole-clip rather than streaming, output is f32 only, and there is no normalization gain.
