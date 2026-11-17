@@ -168,7 +168,7 @@ gain curves, `now()`), so `PlaylistPlayer`/`TrackPlayer`/preload scheduling port
 | Seam | Desktop (Windows/Linux/macOS) | Android | Web |
 | --- | --- | --- | --- |
 | File access (`FileAccess`) | `std::fs` + native folder picker (`rfd`) | `std::fs` under `MANAGE_EXTERNAL_STORAGE`, as the current app already does (no SAF; verified in Phase 0 item 4) | File System Access API via `web-sys`; server-backed access unchanged |
-| Library store (`LibraryStore`) | `rusqlite` (bundled) | `rusqlite` (bundled) | SQLite-wasm on OPFS, or IndexedDB via `idb` behind the same trait (decide in Phase 0) |
+| Library store (`LibraryStore`) | `rusqlite` (bundled) | `rusqlite` (bundled) | SQLite-wasm on OPFS (`opfs-sahpool` VFS, in a worker), chosen in Phase 0: see "Phase 0 results so far" |
 | Offline downloads backend | files on disk | files on disk (existing native streaming+hashing logic ported to Rust, `sha2`) | OPFS (port of `apps/web/src/adapters/offlineBackend.ts`) |
 | HTTP (`ApiClient`, Last.fm, update check) | `reqwest` (rustls) | `reqwest` (rustls) | `reqwest`'s wasm backend (`fetch`) |
 | Secret storage (device token) | Windows Credential Manager / Secret Service / Keychain via `keyring` | Android Keystore via JNI (`BeatseamSecretStoreModule.kt`) | cookie session (unchanged) |
@@ -419,6 +419,13 @@ the test phone, native `std::fs` under that same permission is enough, with no J
 * Consequence: the Android `FileAccess` is the same `std::fs` code as desktop, and the SAF-via-JNI row in the platform
   seams table is replaced. Offline downloads on Android are plain files too. Still unverified: Play Store policy for
   `MANAGE_EXTERNAL_STORAGE` (the app is distributed outside it today).
+
+**Web storage decision** (spike `web-storage`; numbers in its README): SQLite-wasm with the `opfs-sahpool` VFS, not
+IndexedDB. On 20,000 tracks in Chromium it inserts in 0.4 s (IndexedDB 0.6 s), pages an ordered list in 1.8 ms
+(10 ms) and does a substring search in 5.6 ms (555 ms, a full scan). It needs no cross-origin-isolation headers. It
+keeps one schema and the same SQL on all platforms. Costs: one connection (one tab) at a time, so a second tab needs a
+Web Locks leader or stays server-backed; a 407 KB gzipped wasm download; all access through a worker. Calling SQLite
+from the Rust wasm code was not verified (call the JS module through `wasm-bindgen`, or try `sqlite-wasm-rs`).
 
 ### Phase 1: `beatseam-core`, `beatseam-api`, `beatseam-audio` (no UI)
 
