@@ -3,5 +3,6 @@
 //!
 //! Layering rule: nothing here may depend on a UI toolkit, a platform crate or a specific async runtime.
 
+pub mod crossfade;
 pub mod lyrics;
 pub mod playlist;
