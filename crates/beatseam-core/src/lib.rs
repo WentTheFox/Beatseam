@@ -5,4 +5,5 @@
 
 pub mod crossfade;
 pub mod lyrics;
+pub mod metadata;
 pub mod playlist;
