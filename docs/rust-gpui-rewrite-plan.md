@@ -367,6 +367,15 @@ patches; full notes in that folder's README):
 * **Consequence under the plan's own rule** ("anything short of the accessibility and IME bar means Android goes
   Compose + UniFFI"): the bar is unproven, so Android is **not qualified for GPUI** and defaults to Compose + UniFFI.
   A TalkBack pass (plus a non-Latin keyboard) would be needed to reopen that.
+
+**Item 3, audio on Windows** (spike in `spikes/windows-audio/`; full table in that folder's README):
+
+* `symphonia` 0.6.1 decode, `cpal` 0.18 output and our own equal-power mixer work together on Windows: the mixer's
+  five unit tests pass, an offline render of two real tracks shows a smooth loudness curve through a 6 s fade, and
+  real-time playback through WASAPI ran with no stream errors and a worst callback of 17 us (0.1% of its buffer).
+* Two things for the real engine: two loud tracks summed mid-fade peaked at 1.27, so normalization or a limiter is
+  required; and the spike only does f32 output, linear resampling and whole-clip decoding.
+* Not checked by ear, and not yet done on Android (backgrounded, foreground service) or web (`AudioWorklet`).
 ### Phase 1: `beatseam-core`, `beatseam-api`, `beatseam-audio` (no UI)
 
 Port in dependency order, porting the matching Vitest tests along with each module (the tests are the spec):
