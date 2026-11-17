@@ -2,7 +2,7 @@
 # Phase 0 only has the throwaway spikes; the real crates/ land in Phase 1.
 [workspace]
 resolver = "2"
-members = ["crates/beatseam-core", "crates/beatseam-api", "spikes/windows-gpui", "spikes/windows-audio", "spikes/parity-gpui", "spikes/parity-web", "spikes/parity-compare"]
+members = ["crates/beatseam-core", "crates/beatseam-api", "crates/beatseam-tags", "spikes/windows-gpui", "spikes/windows-audio", "spikes/parity-gpui", "spikes/parity-web", "spikes/parity-compare"]
 # Separate Cargo project: it uses the community Android backend, which is built on the
 # `gpui-pre` snapshots of GPUI rather than the Zed git revision the Windows spike pins.
 exclude = ["spikes/android-gpui", "spikes/web-fsa", "spikes/web-audio", "spikes/uniffi-android"]

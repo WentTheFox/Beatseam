@@ -1,0 +1,13 @@
+[package]
+name = "beatseam-tags"
+version = "0.0.0"
+edition = "2024"
+publish = false
+description = "Audio tag reading (title, artists, album, cover art) for beatseam-core, on top of lofty."
+
+[dependencies]
+beatseam-core = { path = "../beatseam-core" }
+lofty = "0.25"
+
+[dev-dependencies]
+serde_json = "1"
