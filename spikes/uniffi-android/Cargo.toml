@@ -1,0 +1,27 @@
+[package]
+name = "beatseam-spike-uniffi"
+version = "0.0.0"
+edition = "2024"
+publish = false
+description = "Phase 0 spike, item 5: a Compose screen observing a Rust view model through UniFFI. Throwaway."
+
+# Its own project (cross-compiled for Android), not part of the root workspace.
+[workspace]
+
+[lib]
+name = "beatseam_vm"
+crate-type = ["cdylib", "lib"]
+
+[[bin]]
+name = "uniffi-bindgen"
+path = "src/bin/uniffi-bindgen.rs"
+
+[dependencies]
+uniffi = { version = "0.32", features = ["cli"] }
+
+[profile.release]
+opt-level = "z"
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true

@@ -427,6 +427,15 @@ keeps one schema and the same SQL on all platforms. Costs: one connection (one t
 Web Locks leader or stays server-backed; a 407 KB gzipped wasm download; all access through a worker. Calling SQLite
 from the Rust wasm code was not verified (call the JS module through `wasm-bindgen`, or try `sqlite-wasm-rs`).
 
+**Item 5, UniFFI round trip** (spike `uniffi-android`; full notes in its README): the Compose-over-Rust shape works on
+the test phone. A Compose screen renders from a Rust view model's pushed state snapshots (a callback interface called
+from a Rust thread, no thread hop needed for Compose state), actions go back as method calls, errors arrive as typed
+Kotlin exceptions, and a Rust `async fn` becomes a `suspend fun`. Release numbers: 13 us per trivial call, 191 us for
+a 200-row snapshot, 5 ms for 5,000 rows and 19 ms for 20,000. So pushed state must stay small and the library list must
+be paged. The Rust library is 401 KB. Gotchas: `u32` ids arrive as Kotlin `UInt` (use `i32`/`i64` ids); always measure
+non-debuggable builds (a debuggable app made calls three times slower). Not covered: a view model held by a background
+service with the UI gone, and process death.
+
 ### Phase 1: `beatseam-core`, `beatseam-api`, `beatseam-audio` (no UI)
 
 Port in dependency order, porting the matching Vitest tests along with each module (the tests are the spec):
