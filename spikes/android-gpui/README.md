@@ -44,6 +44,27 @@ Accessibility, what is known without having run TalkBack:
   activated", then "deactivated" in logcat), so it only ever saw the root node. A client that stays attached, such as
   TalkBack, is needed.
 
+## File access from native code (Phase 0 item 4, Android half)
+
+`src/fs_probe.rs` runs on a thread at startup and logs to logcat (`fs:` lines). Question: today's app doesn't use SAF
+(`BeatseamFileAccessModule.kt` is `java.io.File` under `MANAGE_EXTERNAL_STORAGE`), so can Rust use plain `std::fs`
+under the same permission, with no JNI? To try it, add `<uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />`
+to the host's `AndroidManifest.xml` (a local edit of the clone, not in this repo), rebuild, install, then
+`adb shell appops set dev.gpui.mobile.example MANAGE_EXTERNAL_STORAGE allow` and relaunch.
+
+Galaxy S24+, Android 17, the real music library (1,990 files, 8.5 GB under `Music/`):
+
+| Check | Without the grant | With All files access |
+| --- | --- | --- |
+| `read_dir` of `/storage/emulated/0` | works, 27 entries (the public folders) | works, 76 entries (everything) |
+| Recursive walk of `Music/` with `metadata()` per entry | 776 files seen (not the whole library), 19.5 s | 1,990 files, 8,500 MB, **1.96 s** |
+| 64 KiB read at the middle of an 8 MB mp3 | not measured | 7 ms |
+| Write, read back, delete a UTF-8 file in `Pictures/Screenshots/Beatseam/` | `PermissionDenied` (os error 1) | works |
+| `Android/data` | `PermissionDenied` | `PermissionDenied` (other apps' private data stays closed) |
+
+So with the permission the app already requires, `std::fs` is enough: no JNI and no folder picker for Android file
+access. Without it the app sees a filtered, much slower view, so the "grant All files access" step stays in onboarding.
+
 ## Gotchas
 
 * `adb install -r` of the rebuilt APK kept running the previous example's code; only `adb uninstall` + `install` picked

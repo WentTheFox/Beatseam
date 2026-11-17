@@ -167,7 +167,7 @@ gain curves, `now()`), so `PlaylistPlayer`/`TrackPlayer`/preload scheduling port
 
 | Seam | Desktop (Windows/Linux/macOS) | Android | Web |
 | --- | --- | --- | --- |
-| File access (`FileAccess`) | `std::fs` + native folder picker (`rfd`) | SAF via JNI, reusing `BeatseamFileAccessModule.kt` logic | File System Access API via `web-sys`; server-backed access unchanged |
+| File access (`FileAccess`) | `std::fs` + native folder picker (`rfd`) | `std::fs` under `MANAGE_EXTERNAL_STORAGE`, as the current app already does (no SAF; verified in Phase 0 item 4) | File System Access API via `web-sys`; server-backed access unchanged |
 | Library store (`LibraryStore`) | `rusqlite` (bundled) | `rusqlite` (bundled) | SQLite-wasm on OPFS, or IndexedDB via `idb` behind the same trait (decide in Phase 0) |
 | Offline downloads backend | files on disk | files on disk (existing native streaming+hashing logic ported to Rust, `sha2`) | OPFS (port of `apps/web/src/adapters/offlineBackend.ts`) |
 | HTTP (`ApiClient`, Last.fm, update check) | `reqwest` (rustls) | `reqwest` (rustls) | `reqwest`'s wasm backend (`fetch`) |
@@ -321,7 +321,8 @@ Build throwaway apps that answer the open technical questions before any real po
 3. **Audio**: `cpal` + `symphonia` playing two local files with an equal-power crossfade from our own mixer, on
    Windows, on Android while backgrounded (foreground service), and on web in an `AudioWorklet` while the tab is in the
    background.
-4. **File access**: SAF (Android) and the File System Access API (web) from Rust.
+4. **File access**: `std::fs` under All files access (Android; the app does not use SAF) and the File System Access
+   API (web) from Rust. Both done, see the results below.
 5. **UniFFI round trip** (only if item 2 failed): a Compose screen observing a Rust view model, with actions flowing
    back, to confirm the binding shape before Phase 3.
 6. **Visual parity pipeline**: render one view headlessly to PNG with GPUI on a Linux CI runner (no GPU, no display)
@@ -401,7 +402,18 @@ patches; full notes in that folder's README):
 * Verified against an OPFS handle (a picker can't be automated). Still unverified: the permission re-prompt a picked
   folder needs after a reload (`requestPermission()` needs a user gesture) and I/O speed on a real disk folder.
 * `showDirectoryPicker` is not in stable `web-sys`, so the picker call stays as a few lines of JS in the web shell.
-* The Android SAF half of item 4 is not done yet.
+
+**Item 4, file access, Android half** (in `spikes/android-gpui`, `src/fs_probe.rs`): the current app does not use SAF;
+it reads with `java.io.File` under `MANAGE_EXTERNAL_STORAGE`, because a Samsung SAF picker rejected folder grants. On
+the test phone, native `std::fs` under that same permission is enough, with no JNI:
+
+* Walking the real library (1,990 files, 8.5 GB) took 1.96 s, a 64 KiB mid-file read 7 ms, and a UTF-8 write, read
+  back and delete worked. `Android/data` stays denied.
+* Without the grant the app sees only a filtered view: a 776-file walk of the same folder took 19.5 s and writes fail.
+  So the existing "grant All files access" onboarding step stays.
+* Consequence: the Android `FileAccess` is the same `std::fs` code as desktop, and the SAF-via-JNI row in the platform
+  seams table is replaced. Offline downloads on Android are plain files too. Still unverified: Play Store policy for
+  `MANAGE_EXTERNAL_STORAGE` (the app is distributed outside it today).
 
 ### Phase 1: `beatseam-core`, `beatseam-api`, `beatseam-audio` (no UI)
 

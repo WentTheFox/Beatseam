@@ -7,6 +7,7 @@
 
 extern crate gpui_mobile;
 
+mod fs_probe;
 mod spike_view;
 mod text_input;
 
@@ -25,6 +26,7 @@ fn android_main(app: android_activity::AndroidApp) {
             .with_tag("beatseam-spike"),
     );
     jni::install_panic_hook();
+    std::thread::spawn(fs_probe::run);
     let _platform = jni::init_platform(&app);
     let Some(shared) = jni::shared_platform() else {
         log::error!("shared_platform() returned None");
