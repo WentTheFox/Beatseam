@@ -376,6 +376,21 @@ patches; full notes in that folder's README):
 * Two things for the real engine: two loud tracks summed mid-fade peaked at 1.27, so normalization or a limiter is
   required; and the spike only does f32 output, linear resampling and whole-clip decoding.
 * Listened to by the maintainer: sounded fine. Not yet done on Android (backgrounded, foreground service) or web (`AudioWorklet`).
+
+**Item 6, visual parity pipeline** (spikes `parity-gpui`, `parity-web`, `parity-compare`; full notes in
+`spikes/parity-gpui/README.md`):
+
+* GPUI **can** render a fixture headlessly to PNG with no GPU or display on Linux (software Vulkan), in ~0.13 s per
+  render after a 1.4 s start, and the output is byte-identical across runs when text uses only bundled fonts. It
+  **cannot on Windows** at this revision (`current_headless_renderer()` is `None`), so GPUI baselines are generated on
+  Linux CI.
+* A Leptos twin screenshotted in Chromium compared against it with SSIM scored 0.961 untuned and 0.981 once line
+  heights were made whole-pixel tokens on both sides; the remaining diff is sub-pixel text placement. So the tiered
+  thresholds in "Visual parity testing" look achievable; tune them on real screens.
+* Line heights (like colours and spacing) must be explicit pixel design tokens: the renderers' defaults differ a lot.
+* The structural check cannot read GPUI's accessibility tree headlessly (`debug_a11y_tree_json()` is `None` unless
+  assistive technology is connected). The plan's structural check should compare each platform's real tree against
+  the structure derived from `beatseam-viewmodel`, rather than comparing platform trees to each other headlessly.
 ### Phase 1: `beatseam-core`, `beatseam-api`, `beatseam-audio` (no UI)
 
 Port in dependency order, porting the matching Vitest tests along with each module (the tests are the spec):

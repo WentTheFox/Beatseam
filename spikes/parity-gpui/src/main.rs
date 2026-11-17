@@ -36,6 +36,11 @@ fn main() -> anyhow::Result<()> {
     });
     let window = cx.open_window(size(px(390.), px(844.)), |_, cx| cx.new(|_| fixture::NowPlaying::fixture()))?;
     cx.run_until_parked();
+    let tree = window.update(&mut cx, |_, window, _| window.debug_a11y_tree_json())?;
+    println!("a11y tree after first frame: {}", tree.as_deref().map(|t| format!("{} bytes", t.len())).unwrap_or_else(|| "None (a11y not active headlessly)".into()));
+    if let (Some(t), Some(path)) = (tree, std::env::args().nth(2)) {
+        std::fs::write(path, t)?;
+    }
     let image = cx.capture_screenshot(window.into())?;
     println!("rendered {}x{} in {} ms", image.width(), image.height(), started.elapsed().as_millis());
     image.save(&out)?;
