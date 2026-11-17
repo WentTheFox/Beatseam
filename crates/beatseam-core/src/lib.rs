@@ -12,3 +12,4 @@ pub mod lyrics;
 pub mod metadata;
 pub mod playlist;
 pub mod scrobble;
+pub mod tasks;
