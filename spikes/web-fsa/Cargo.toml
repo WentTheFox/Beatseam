@@ -1,0 +1,29 @@
+[package]
+name = "beatseam-spike-web-fsa"
+version = "0.0.0"
+edition = "2024"
+publish = false
+description = "Phase 0 spike, item 4: the File System Access API driven from Rust compiled to wasm. Throwaway."
+
+# Its own project (wasm32 only), not part of the root workspace.
+[workspace]
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+wasm-bindgen = "0.2"
+wasm-bindgen-futures = "0.4"
+js-sys = "0.3"
+web-sys = { version = "0.3", features = [
+    "Window", "Performance", "Blob", "File",
+    "FileSystemDirectoryHandle", "FileSystemFileHandle", "FileSystemHandle",
+    "FileSystemGetDirectoryOptions", "FileSystemGetFileOptions", "FileSystemRemoveOptions",
+    "FileSystemWritableFileStream",
+] }
+
+[profile.release]
+opt-level = "z"
+lto = true
+codegen-units = 1
+panic = "abort"

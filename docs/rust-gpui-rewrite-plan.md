@@ -391,6 +391,18 @@ patches; full notes in that folder's README):
 * The structural check cannot read GPUI's accessibility tree headlessly (`debug_a11y_tree_json()` is `None` unless
   assistive technology is connected). The plan's structural check should compare each platform's real tree against
   the structure derived from `beatseam-viewmodel`, rather than comparing platform trees to each other headlessly.
+
+**Item 4, file access, web half** (spike `web-fsa`; full notes in `spikes/web-fsa/README.md`):
+
+* The web `FileAccess` seam works from Rust through `web-sys`: recursive listing with sizes (361 files in 123 ms),
+  byte-range reads via `Blob.slice` without reading the whole file, non-ASCII text read/write, and a `NotFoundError`
+  that maps to a not-found variant. A directory handle restored from IndexedDB after a reload works from Rust. The
+  wasm is 125 KB before any app code.
+* Verified against an OPFS handle (a picker can't be automated). Still unverified: the permission re-prompt a picked
+  folder needs after a reload (`requestPermission()` needs a user gesture) and I/O speed on a real disk folder.
+* `showDirectoryPicker` is not in stable `web-sys`, so the picker call stays as a few lines of JS in the web shell.
+* The Android SAF half of item 4 is not done yet.
+
 ### Phase 1: `beatseam-core`, `beatseam-api`, `beatseam-audio` (no UI)
 
 Port in dependency order, porting the matching Vitest tests along with each module (the tests are the spec):
