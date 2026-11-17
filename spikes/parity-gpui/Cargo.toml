@@ -1,0 +1,16 @@
+[package]
+name = "beatseam-spike-parity-gpui"
+version = "0.0.0"
+edition = "2024"
+publish = false
+description = "Phase 0 spike, item 6: render a fixture view headlessly to PNG with GPUI (Linux CI path). Throwaway."
+
+[dependencies]
+gpui = { git = "https://github.com/zed-industries/zed", rev = "a701d985a8caac9c26f33e61afff4e102a32b303", features = ["test-support"] }
+gpui_platform = { git = "https://github.com/zed-industries/zed", rev = "a701d985a8caac9c26f33e61afff4e102a32b303", features = ["test-support"] }
+anyhow = "1"
+image = { version = "0.25", default-features = false, features = ["png"] }
+
+# Deterministic text: cosmic-text with only the bundled fonts, so every OS shapes the same way.
+[target.'cfg(target_os = "linux")'.dependencies]
+gpui_wgpu = { git = "https://github.com/zed-industries/zed", rev = "a701d985a8caac9c26f33e61afff4e102a32b303" }
