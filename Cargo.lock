@@ -528,6 +528,7 @@ dependencies = [
 name = "beatseam-core"
 version = "0.0.0"
 dependencies = [
+ "futures-util",
  "serde_json",
 ]
 

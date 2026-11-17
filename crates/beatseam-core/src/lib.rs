@@ -8,6 +8,7 @@ pub mod app_update;
 pub mod audio;
 pub mod crossfade;
 pub mod discord;
+pub mod file_access;
 pub mod http;
 pub mod lyrics;
 pub mod metadata;
@@ -16,3 +17,5 @@ pub mod scrobble;
 pub mod tasks;
 
 pub mod js_compat;
+pub mod library_scan;
+pub mod library_store;

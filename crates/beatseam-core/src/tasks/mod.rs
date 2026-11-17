@@ -5,7 +5,7 @@ mod abort;
 mod gate;
 mod queue;
 #[cfg(test)]
-mod test_executor;
+pub(crate) mod test_executor;
 
 pub use abort::{AbortHandle, AbortSignal, Aborted, abortable};
 pub use gate::Gate;
