@@ -7,6 +7,6 @@ mod queue;
 #[cfg(test)]
 mod test_executor;
 
-pub use abort::{AbortHandle, AbortSignal};
+pub use abort::{AbortHandle, AbortSignal, Aborted, abortable};
 pub use gate::Gate;
 pub use queue::{PassRegistrar, Subscription, TaskContext, TaskInfo, TaskOptions, TaskPriority, TaskProgress, TaskQueue, TaskState};

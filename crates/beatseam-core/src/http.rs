@@ -2,7 +2,8 @@
 //! on desktop and the server, `fetch` through `web-sys` on web, a Kotlin/OkHttp bridge on Android, a fake in tests).
 //!
 //! The trait uses `async fn` directly and has no `Send` bound, so it runs on any executor - including the
-//! single-threaded wasm one - without this crate depending on a runtime.
+//! single-threaded wasm one - without this crate depending on a runtime. A transport should cancel the request when the
+//! future it returned is dropped.
 
 use std::fmt;
 
@@ -10,6 +11,19 @@ use std::fmt;
 pub enum Method {
     Get,
     Post,
+    Put,
+    Delete,
+}
+
+impl Method {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Get => "GET",
+            Self::Post => "POST",
+            Self::Put => "PUT",
+            Self::Delete => "DELETE",
+        }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -18,18 +32,44 @@ pub struct HttpRequest {
     pub url: String,
     pub headers: Vec<(String, String)>,
     pub body: Option<String>,
+    /// Give up (fail with a [`TransportError`]) if no answer arrives within this long; `None` leaves it to the
+    /// transport's own default.
+    pub timeout_ms: Option<u64>,
+}
+
+impl HttpRequest {
+    pub fn new(method: Method, url: impl Into<String>) -> Self {
+        Self { method, url: url.into(), headers: Vec::new(), body: None, timeout_ms: None }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct HttpResponse {
     pub status: u16,
+    /// The reason phrase (`fetch`'s `statusText`), possibly empty (HTTP/2 has none).
+    pub status_text: String,
+    pub headers: Vec<(String, String)>,
     pub body: Vec<u8>,
 }
 
 impl HttpResponse {
+    pub fn new(status: u16, body: impl Into<Vec<u8>>) -> Self {
+        Self { status, status_text: String::new(), headers: Vec::new(), body: body.into() }
+    }
+
+    pub fn with_header(mut self, name: &str, value: &str) -> Self {
+        self.headers.push((name.to_owned(), value.to_owned()));
+        self
+    }
+
     /// `response.ok` in `fetch`: a 2xx status.
     pub fn ok(&self) -> bool {
         (200..300).contains(&self.status)
+    }
+
+    /// A header value by case-insensitive name (the first one, if repeated).
+    pub fn header(&self, name: &str) -> Option<&str> {
+        self.headers.iter().find(|(k, _)| k.eq_ignore_ascii_case(name)).map(|(_, v)| v.as_str())
     }
 }
 
@@ -137,7 +177,7 @@ pub(crate) mod test_support {
 
     impl FakeTransport {
         pub fn json(status: u16, body: &str) -> Self {
-            Self { requests: RefCell::new(Vec::new()), response: Ok(HttpResponse { status, body: body.as_bytes().to_vec() }) }
+            Self { requests: RefCell::new(Vec::new()), response: Ok(HttpResponse::new(status, body)) }
         }
 
         pub fn offline() -> Self {

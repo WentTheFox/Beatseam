@@ -98,6 +98,7 @@ pub async fn check_for_update<T: HttpTransport>(transport: &T, current_version: 
         url: format!("https://api.github.com/repos/{GITHUB_REPO}/releases/latest"),
         headers: vec![("User-Agent".into(), "Beatseam".into())],
         body: None,
+        timeout_ms: None,
     };
     let response = transport.send(request).await.map_err(UpdateCheckError::Transport)?;
     if !response.ok() {

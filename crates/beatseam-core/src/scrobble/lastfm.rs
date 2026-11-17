@@ -135,12 +135,13 @@ impl<T: HttpTransport> LastFmClient<T> {
 
         let body = form_urlencode(&full);
         let request = match method {
-            Method::Get => HttpRequest { method, url: format!("{API_ROOT}?{body}"), headers: Vec::new(), body: None },
-            Method::Post => HttpRequest {
+            Method::Get => HttpRequest::new(method, format!("{API_ROOT}?{body}")),
+            _ => HttpRequest {
                 method,
                 url: API_ROOT.into(),
                 headers: vec![("Content-Type".into(), "application/x-www-form-urlencoded".into())],
                 body: Some(body),
+                timeout_ms: None,
             },
         };
         let response = self.transport.send(request).await.map_err(LastFmCallError::Transport)?;

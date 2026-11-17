@@ -5,18 +5,18 @@
 /// VT, FF, CR, space, NBSP, U+1680, U+2000-U+200A, LS, PS, U+202F, U+205F, U+3000 and the byte order mark U+FEFF.
 /// (Rust's `char::is_whitespace` differs in two places: it also accepts U+0085, which JavaScript does not, and does not
 /// accept U+FEFF, which JavaScript does.)
-pub(crate) fn js_is_whitespace(c: char) -> bool {
+pub fn js_is_whitespace(c: char) -> bool {
     matches!(c, '\u{9}'..='\u{d}' | ' ' | '\u{a0}' | '\u{1680}' | '\u{2000}'..='\u{200a}' | '\u{2028}' | '\u{2029}' | '\u{202f}' | '\u{205f}' | '\u{3000}' | '\u{feff}')
 }
 
 /// `String.prototype.trim`.
-pub(crate) fn js_trim(s: &str) -> &str {
+pub fn js_trim(s: &str) -> &str {
     s.trim_matches(js_is_whitespace)
 }
 
 /// `Math.round`: halves round up (towards +infinity), unlike `f64::round`, which rounds them away from zero (`-1.5` is
 /// `-1` in JavaScript and `-2` in Rust).
-pub(crate) fn js_round(x: f64) -> f64 {
+pub fn js_round(x: f64) -> f64 {
     (x + 0.5).floor()
 }
 

@@ -15,4 +15,4 @@ pub mod playlist;
 pub mod scrobble;
 pub mod tasks;
 
-mod js_compat;
+pub mod js_compat;

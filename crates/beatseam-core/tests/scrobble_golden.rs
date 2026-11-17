@@ -40,7 +40,7 @@ struct Recorder(RefCell<Vec<HttpRequest>>);
 impl HttpTransport for &Recorder {
     async fn send(&self, request: HttpRequest) -> Result<HttpResponse, TransportError> {
         self.0.borrow_mut().push(request);
-        Ok(HttpResponse { status: 200, body: br#"{"token":"tok","session":{"key":"sk","name":"user"}}"#.to_vec() })
+        Ok(HttpResponse::new(200, &br#"{"token":"tok","session":{"key":"sk","name":"user"}}"#[..]))
     }
 }
 

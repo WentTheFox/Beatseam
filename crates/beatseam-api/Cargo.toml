@@ -1,0 +1,11 @@
+[package]
+name = "beatseam-api"
+version = "0.0.0"
+edition = "2024"
+publish = false
+description = "The Beatseam server wire format (DTOs, API version negotiation, track keys) and the ApiClient. Shared by every app and the server."
+
+[dependencies]
+beatseam-core = { path = "../beatseam-core" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"

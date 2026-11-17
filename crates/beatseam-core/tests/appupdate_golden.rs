@@ -11,7 +11,7 @@ struct Canned(RefCell<String>);
 
 impl HttpTransport for &Canned {
     async fn send(&self, _request: HttpRequest) -> Result<HttpResponse, TransportError> {
-        Ok(HttpResponse { status: 200, body: self.0.borrow().clone().into_bytes() })
+        Ok(HttpResponse::new(200, self.0.borrow().clone()))
     }
 }
 

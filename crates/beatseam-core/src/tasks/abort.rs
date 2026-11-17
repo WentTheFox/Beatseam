@@ -90,3 +90,98 @@ mod tests {
         assert_eq!(fired.load(Ordering::SeqCst), 0);
     }
 }
+
+/// The future was cancelled through its [`AbortSignal`] before it finished.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Aborted;
+
+impl std::fmt::Display for Aborted {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("aborted")
+    }
+}
+
+impl std::error::Error for Aborted {}
+
+/// Races `future` against `signal`: the future's output if it finishes first, [`Aborted`] if the signal aborts first
+/// (or already had) - in which case the future is dropped, which is how a cancelled request stops. With no signal it is
+/// just the future. The runtime-free version of passing an `AbortSignal` to `fetch`.
+pub async fn abortable<T>(signal: Option<&AbortSignal>, future: impl Future<Output = T>) -> Result<T, Aborted> {
+    use std::pin::pin;
+    use std::task::Poll;
+
+    let Some(signal) = signal else { return Ok(future.await) };
+    if signal.is_aborted() {
+        return Err(Aborted);
+    }
+    let gate = super::Gate::new();
+    let opener = gate.clone();
+    signal.on_abort(move || opener.open());
+
+    let mut future = pin!(future);
+    let mut aborted = pin!(gate.wait());
+    std::future::poll_fn(|cx| {
+        if let Poll::Ready(value) = future.as_mut().poll(cx) {
+            return Poll::Ready(Ok(value));
+        }
+        match aborted.as_mut().poll(cx) {
+            Poll::Ready(()) => Poll::Ready(Err(Aborted)),
+            Poll::Pending => Poll::Pending,
+        }
+    })
+    .await
+}
+
+#[cfg(test)]
+mod abortable_tests {
+    use super::super::test_executor::{Pool, yield_now};
+    use super::*;
+    use crate::tasks::Gate;
+
+    #[test]
+    fn without_a_signal_it_is_just_the_future() {
+        let pool = Pool::new();
+        let r = pool.spawn(abortable(None, async { yield_now().await; 5 }));
+        pool.run_until_stalled();
+        assert_eq!(r.take(), Some(Ok(5)));
+    }
+
+    #[test]
+    fn a_signal_that_aborts_first_drops_the_future() {
+        let (pool, handle, never) = (Pool::new(), AbortHandle::new(), Gate::new());
+        let signal = handle.signal();
+        let dropped = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+        struct SetOnDrop(std::sync::Arc<std::sync::atomic::AtomicBool>);
+        impl Drop for SetOnDrop {
+            fn drop(&mut self) {
+                self.0.store(true, std::sync::atomic::Ordering::SeqCst);
+            }
+        }
+        let flag = SetOnDrop(dropped.clone());
+        let r = pool.spawn(async move { abortable(Some(&signal), async move { let _keep = flag; never.wait().await; }).await });
+        pool.run_until_stalled();
+        assert_eq!(r.take(), None);
+        handle.abort();
+        pool.run_until_stalled();
+        assert_eq!(r.take(), Some(Err(Aborted)));
+        assert!(dropped.load(std::sync::atomic::Ordering::SeqCst), "the cancelled future was dropped");
+    }
+
+    #[test]
+    fn an_already_aborted_signal_fails_at_once_and_a_finished_future_wins_over_a_later_abort() {
+        let pool = Pool::new();
+        let handle = AbortHandle::new();
+        handle.abort();
+        let signal = handle.signal();
+        let r = pool.spawn(async move { abortable(Some(&signal), async { 1 }).await });
+        pool.run_until_stalled();
+        assert_eq!(r.take(), Some(Err(Aborted)));
+
+        let late = AbortHandle::new();
+        let signal = late.signal();
+        let r = pool.spawn(async move { abortable(Some(&signal), async { 2 }).await });
+        pool.run_until_stalled();
+        late.abort();
+        assert_eq!(r.take(), Some(Ok(2)));
+    }
+}
