@@ -70,15 +70,7 @@ pub struct ParsedLyrics {
     pub lines: Vec<LyricLine>,
 }
 
-/// JavaScript's `String.prototype.trim` (Unicode whitespace plus the byte order mark).
-fn js_trim(s: &str) -> &str {
-    s.trim_matches(|c: char| c.is_whitespace() || c == '\u{feff}')
-}
-
-/// JavaScript's `Math.round`: halves round up, unlike `f64::round`.
-fn js_round(x: f64) -> f64 {
-    (x + 0.5).floor()
-}
+use crate::js_compat::{js_round, js_trim};
 
 /// JavaScript's `Number.prototype.toFixed(2)` for a non-negative finite number. It rounds an exact tie up (`1.125` is
 /// `"1.13"`), where Rust's `{:.2}` rounds it to even (`"1.12"`); non-ties are the same in both.

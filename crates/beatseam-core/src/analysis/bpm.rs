@@ -15,10 +15,7 @@ const MAX_BPM: f64 = 200.0;
 const ENVELOPE_WINDOW_SAMPLES: usize = 1024;
 const ENVELOPE_HOP_SAMPLES: usize = 512;
 
-/// JavaScript's `Math.round` (halves round up).
-fn js_round(x: f64) -> f64 {
-    (x + 0.5).floor()
-}
+use crate::js_compat::js_round;
 
 /// Energy-per-window envelope of a mono signal, at a much lower "envelope rate" than the original sample rate.
 /// Stored as `f32` like the TypeScript's `Float32Array`, so values round the same way.

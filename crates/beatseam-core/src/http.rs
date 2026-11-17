@@ -122,3 +122,39 @@ mod tests {
         assert_eq!(block_on(async { 1 + 1 }), 2);
     }
 }
+
+#[cfg(test)]
+pub(crate) mod test_support {
+    use std::cell::RefCell;
+
+    use super::{HttpRequest, HttpResponse, HttpTransport, TransportError};
+
+    /// Records every request and answers with a canned response (or a transport failure).
+    pub struct FakeTransport {
+        pub requests: RefCell<Vec<HttpRequest>>,
+        pub response: Result<HttpResponse, TransportError>,
+    }
+
+    impl FakeTransport {
+        pub fn json(status: u16, body: &str) -> Self {
+            Self { requests: RefCell::new(Vec::new()), response: Ok(HttpResponse { status, body: body.as_bytes().to_vec() }) }
+        }
+
+        pub fn offline() -> Self {
+            Self { requests: RefCell::new(Vec::new()), response: Err(TransportError("offline".into())) }
+        }
+    }
+
+    impl HttpTransport for FakeTransport {
+        async fn send(&self, request: HttpRequest) -> Result<HttpResponse, TransportError> {
+            self.requests.borrow_mut().push(request);
+            self.response.clone()
+        }
+    }
+
+    impl HttpTransport for &FakeTransport {
+        async fn send(&self, request: HttpRequest) -> Result<HttpResponse, TransportError> {
+            (**self).send(request).await
+        }
+    }
+}

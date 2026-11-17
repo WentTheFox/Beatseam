@@ -7,7 +7,7 @@ pub fn lyrics_stem(filename: &str) -> String {
         Some(dot) if filename.len() > dot + 1 && !filename[dot + 1..].contains(['/', '\\']) => &filename[..dot],
         _ => filename,
     };
-    without_extension.trim_matches(|c: char| c.is_whitespace() || c == '\u{feff}').to_lowercase()
+    crate::js_compat::js_trim(without_extension).to_lowercase()
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]

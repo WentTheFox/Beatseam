@@ -50,7 +50,8 @@ impl<T: HttpTransport> ScrobbleSink for LocalScrobbleSink<T> {
 
 #[cfg(test)]
 mod tests {
-    use super::super::lastfm::{LastFmCredentials, test_support::FakeTransport};
+    use super::super::lastfm::LastFmCredentials;
+    use crate::http::test_support::FakeTransport;
     use super::*;
     use crate::http::block_on;
 

@@ -108,9 +108,9 @@ fn build_api_sig(params: &[(String, String)], api_secret: &str) -> String {
     md5(&(concatenated + api_secret))
 }
 
-/// JavaScript's `Math.round` (halves round up).
+/// `Math.round(x)` as the integer Last.fm's `duration` parameter is written as.
 fn js_round(x: f64) -> i64 {
-    (x + 0.5).floor() as i64
+    crate::js_compat::js_round(x) as i64
 }
 
 /// A Last.fm client over whatever [`HttpTransport`] the caller supplies.
@@ -251,44 +251,8 @@ pub fn meets_scrobble_threshold(duration_seconds: f64, elapsed_seconds: f64) -> 
 }
 
 #[cfg(test)]
-pub(crate) mod test_support {
-    use std::cell::RefCell;
-
-    use crate::http::{HttpRequest, HttpResponse, HttpTransport, TransportError};
-
-    /// Records every request and answers with a canned response (or a transport failure).
-    pub struct FakeTransport {
-        pub requests: RefCell<Vec<HttpRequest>>,
-        pub response: Result<HttpResponse, TransportError>,
-    }
-
-    impl FakeTransport {
-        pub fn json(status: u16, body: &str) -> Self {
-            Self { requests: RefCell::new(Vec::new()), response: Ok(HttpResponse { status, body: body.as_bytes().to_vec() }) }
-        }
-
-        pub fn offline() -> Self {
-            Self { requests: RefCell::new(Vec::new()), response: Err(TransportError("offline".into())) }
-        }
-    }
-
-    impl HttpTransport for FakeTransport {
-        async fn send(&self, request: HttpRequest) -> Result<HttpResponse, TransportError> {
-            self.requests.borrow_mut().push(request);
-            self.response.clone()
-        }
-    }
-
-    impl HttpTransport for &FakeTransport {
-        async fn send(&self, request: HttpRequest) -> Result<HttpResponse, TransportError> {
-            (**self).send(request).await
-        }
-    }
-}
-
-#[cfg(test)]
 mod tests {
-    use super::test_support::FakeTransport;
+    use crate::http::test_support::FakeTransport;
     use super::*;
     use crate::http::block_on;
 

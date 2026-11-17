@@ -12,17 +12,9 @@ impl M3u8Entry {
     }
 }
 
-/// JavaScript's `String.prototype.trim`: Unicode whitespace plus the byte order mark (which Rust's `trim` keeps, so
-/// a playlist saved with a BOM would otherwise lose its `#EXTM3U` header handling).
-fn js_trim(s: &str) -> &str {
-    s.trim_matches(|c: char| c.is_whitespace() || c == '\u{feff}')
-}
-
-/// JavaScript's `Math.round`: halves round up (towards +infinity), unlike `f64::round`, which rounds them away
-/// from zero (`-1.5` is `-1` in JS and `-2` in Rust).
-fn js_round(x: f64) -> f64 {
-    (x + 0.5).floor()
-}
+// A playlist saved with a byte order mark must still have its `#EXTM3U` header recognised: `js_trim` strips the BOM,
+// which Rust's own `trim` keeps.
+use crate::js_compat::{js_round, js_trim};
 
 /// The part of JavaScript's `Number(text)` the playlist format can hit: an empty or blank string is `0`, anything
 /// that isn't a finite decimal number is `None`. (JS also accepts `0x`/`0b`/`0o` prefixes; not worth supporting in a

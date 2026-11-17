@@ -4,6 +4,7 @@
 //! Layering rule: nothing here may depend on a UI toolkit, a platform crate or a specific async runtime.
 
 pub mod analysis;
+pub mod app_update;
 pub mod audio;
 pub mod crossfade;
 pub mod discord;
@@ -13,3 +14,5 @@ pub mod metadata;
 pub mod playlist;
 pub mod scrobble;
 pub mod tasks;
+
+mod js_compat;
