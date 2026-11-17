@@ -6,6 +6,7 @@
 pub mod analysis;
 pub mod audio;
 pub mod crossfade;
+pub mod discord;
 pub mod http;
 pub mod lyrics;
 pub mod metadata;
