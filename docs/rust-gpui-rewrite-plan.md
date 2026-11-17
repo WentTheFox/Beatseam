@@ -436,6 +436,47 @@ be paged. The Rust library is 401 KB. Gotchas: `u32` ids arrive as Kotlin `UInt`
 non-debuggable builds (a debuggable app made calls three times slower). Not covered: a view model held by a background
 service with the UI gone, and process death.
 
+#### Phase 0 exit (2026-11-17)
+
+Outcomes of the exit criteria above:
+
+| Decision | Outcome |
+| --- | --- |
+| Desktop UI | GPUI proceeds for Windows, provisionally: it works and exposes UI Automation, but the Narrator pass was skipped, so the accessibility release blocker is still open. Do the Narrator pass first thing in Phase 2b; if it fails, the decision comes back to the maintainer as the plan says. |
+| Android UI | **Jetpack Compose + UniFFI.** GPUI on Android was not shown to meet the accessibility and IME bar (TalkBack skipped, non-Latin IME untried), and the UniFFI shape works (item 5). |
+| Web UI | Leptos (DOM), unchanged. File System Access, SQLite-wasm and the mixer in an `AudioWorklet` all work from Rust/wasm. |
+| Web storage | SQLite-wasm on OPFS with the `opfs-sahpool` VFS (see "Web storage decision"). |
+| Android file access | `std::fs` under All files access, as today; no SAF, no JNI. |
+| Audio | `symphonia` + `cpal` + our own mixer (with a limiter or normalization stage). |
+| Visual parity CI | GPUI baselines generated on Linux (headless); Windows cannot render headlessly at this revision. |
+
+Pinned for Phase 1 and later (from the spikes' lockfiles):
+
+| Component | Pin |
+| --- | --- |
+| Rust | stable, `rustc 1.100.0` used; `rust-toolchain.toml` at the repo root |
+| GPUI (desktop) | `zed-industries/zed` rev `a701d985a8caac9c26f33e61afff4e102a32b303`, no local patches |
+| GPUI Android backend | not used (Android is Compose); `longbridge/gpui-mobile` `7548ebc4b2` only matters if reopened |
+| `symphonia` / `cpal` / `hound` | 0.6.1 / 0.18.2 / 3.5.1 |
+| `leptos` | 0.8.23 |
+| `uniffi` | 0.32.2 (with AGP 9.1.0, Compose BOM 2025.09.00, JNA 5.17.0) |
+| `wasm-bindgen` (crate and CLI, must match) | 0.2.130 |
+| `@sqlite.org/sqlite-wasm` | 3.54.1-build1 |
+
+Not done in Phase 0, carried forward (none changes a decision above, but each is a risk to retire early):
+
+* **Accessibility is unverified on both native targets** (Narrator for GPUI on Windows; TalkBack for whatever Android
+  ships). It stays a per-platform release blocker.
+* **Android backgrounded audio** (foreground service plus the Rust mixer) and **backgrounded web audio** were not
+  tested; the latter needs a manual pass.
+* **Measurements (item 7) are partial.** Windows GPUI numbers exist (10.3 MB executable, ~0.7 s cold start, 63 MB), as do
+  wasm sizes for the pieces (125 KB file access, 29 KB mixer, 407 KB gzipped SQLite) and the UniFFI library (401 KB).
+  Missing: a release APK size for a real Compose app, a whole-app wasm size, and press-to-first-sound on any platform
+  (there is no player to measure yet; take it in Phase 1's CLI and Phase 2b).
+* The Chromium side of visual parity ran on Windows rather than Linux CI, and the Leptos twin was server-rendered only.
+* `MANAGE_EXTERNAL_STORAGE` and Play Store policy; a non-Latin IME; reaching SQLite-wasm from Rust code; the
+  permission re-prompt for a picked folder on web.
+
 ### Phase 1: `beatseam-core`, `beatseam-api`, `beatseam-audio` (no UI)
 
 Port in dependency order, porting the matching Vitest tests along with each module (the tests are the spec):
