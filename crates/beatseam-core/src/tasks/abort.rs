@@ -134,7 +134,8 @@ pub async fn abortable<T>(signal: Option<&AbortSignal>, future: impl Future<Outp
 
 #[cfg(test)]
 mod abortable_tests {
-    use super::super::test_executor::{Pool, yield_now};
+    use super::super::test_executor::Pool;
+    use super::super::yield_now::yield_now;
     use super::*;
     use crate::tasks::Gate;
 

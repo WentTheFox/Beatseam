@@ -6,6 +6,6 @@ publish = false
 description = "Platform-independent Beatseam logic: no UI toolkit, no platform crates, no async runtime."
 
 [dependencies]
-futures-util = { version = "0.3", default-features = false, features = ["alloc"] }
+futures-util = { version = "0.3", default-features = false, features = ["alloc", "async-await-macro"] }
 serde_json = "1"
 

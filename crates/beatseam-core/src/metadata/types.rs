@@ -25,7 +25,7 @@ pub struct TrackMetadata {
     /// The track record's size/modified time at the time metadata was read: a file edited in place keeps the same
     /// file id, so these are what actually catch a changed file.
     pub size_bytes: u64,
-    pub last_modified_ms: i64,
+    pub last_modified_ms: f64,
     /// The metadata parser's version at read time - a mismatch means the parser changed since, so the result is stale
     /// even though the file itself didn't.
     pub parser_version: u32,
