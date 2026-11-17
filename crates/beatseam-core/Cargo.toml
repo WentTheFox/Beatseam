@@ -1,0 +1,8 @@
+[package]
+name = "beatseam-core"
+version = "0.0.0"
+edition = "2024"
+publish = false
+description = "Platform-independent Beatseam logic: no UI toolkit, no platform crates, no async runtime."
+
+[dependencies]
