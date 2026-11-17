@@ -350,6 +350,23 @@ patches; full table in that folder's README):
   ships; it is just no longer a gate for continuing Phase 0.
 * Release build numbers (spike only): 10.3 MB executable, ~0.7 s cold start to a visible window, ~2% of one core idle
   with the record spinning, 63 MB memory with the 5k-row list, flat while scrolling.
+
+**Item 2, GPUI on Android** (spike in `spikes/android-gpui/`, backend `longbridge/gpui-mobile` at `7548ebc4b2`, no
+patches; full notes in that folder's README):
+
+* The backend runs on a real phone (Galaxy S24+, Android 17): Vulkan rendering, the 5k-row list scrolls, the soft
+  keyboard opens from a focused field and typing works (Latin keyboard; a non-Latin IME was not tried).
+* It is built on `gpui-pre` crates.io snapshots, a different GPUI from the Zed revision the Windows spike pins, so
+  the Android and desktop UI code would have to track two GPUI versions.
+* Its README says accessibility is unfinished, but the code does contain an AccessKit-to-Android bridge, so the plan's
+  assumption that there is nothing there was wrong. Whether TalkBack can actually operate a GPUI screen was **not
+  verified**: the maintainer skipped the TalkBack pass (`uiautomator` can't probe it; it needs a client that stays
+  attached).
+* Licensing needs a look before any dependency: the backend is "GPL-3.0-or-later OR AGPL-3.0-or-later OR Apache-2.0";
+  only the Apache-2.0 option fits this MIT repo.
+* **Consequence under the plan's own rule** ("anything short of the accessibility and IME bar means Android goes
+  Compose + UniFFI"): the bar is unproven, so Android is **not qualified for GPUI** and defaults to Compose + UniFFI.
+  A TalkBack pass (plus a non-Latin keyboard) would be needed to reopen that.
 ### Phase 1: `beatseam-core`, `beatseam-api`, `beatseam-audio` (no UI)
 
 Port in dependency order, porting the matching Vitest tests along with each module (the tests are the spec):

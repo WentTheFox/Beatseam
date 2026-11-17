@@ -1,0 +1,31 @@
+[package]
+name = "beatseam-spike-android-gpui"
+version = "0.0.0"
+edition = "2024"
+publish = false
+description = "Phase 0 spike: GPUI on Android via the community gpui-mobile backend, used as-is. Throwaway."
+
+# Its own project, not part of the root workspace (see the root Cargo.toml).
+[workspace]
+
+[lib]
+# The host Gradle project of the backend's example app loads this exact library name.
+name = "gpui_mobile_example"
+crate-type = ["cdylib"]
+path = "src/lib.rs"
+
+[dependencies]
+# longbridge/gpui-mobile, pinned, no local patches (docs/rust-gpui-rewrite-plan.md, "Decisions").
+gpui-mobile = { package = "gpui-pre-mobile", git = "https://github.com/longbridge/gpui-mobile", rev = "7548ebc4b2" }
+gpui = { package = "gpui-pre", version = "=0.3.10", default-features = false }
+unicode-segmentation = "1"
+log = "0.4"
+android_logger = "0.15"
+android-activity = { version = "0.6", features = ["native-activity"] }
+
+[profile.release]
+opt-level = "z"
+lto = "fat"
+codegen-units = 1
+strip = true
+panic = "abort"

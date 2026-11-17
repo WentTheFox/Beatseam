@@ -3,3 +3,6 @@
 [workspace]
 resolver = "2"
 members = ["spikes/windows-gpui"]
+# Separate Cargo project: it uses the community Android backend, which is built on the
+# `gpui-pre` snapshots of GPUI rather than the Zed git revision the Windows spike pins.
+exclude = ["spikes/android-gpui"]
