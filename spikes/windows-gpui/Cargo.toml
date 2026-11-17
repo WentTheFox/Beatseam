@@ -1,0 +1,12 @@
+[package]
+name = "beatseam-spike-windows-gpui"
+version = "0.0.0"
+edition = "2024"
+publish = false
+description = "Phase 0 spike: can GPUI on Windows meet the Narrator/UI Automation bar? Throwaway."
+
+[dependencies]
+# Pinned by git revision, no local patches (docs/rust-gpui-rewrite-plan.md, "Decisions").
+gpui = { git = "https://github.com/zed-industries/zed", rev = "a701d985a8caac9c26f33e61afff4e102a32b303" }
+gpui_platform = { git = "https://github.com/zed-industries/zed", rev = "a701d985a8caac9c26f33e61afff4e102a32b303" }
+unicode-segmentation = "1"

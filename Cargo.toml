@@ -1,0 +1,5 @@
+# Cargo workspace next to the pnpm one (see docs/rust-gpui-rewrite-plan.md).
+# Phase 0 only has the throwaway spikes; the real crates/ land in Phase 1.
+[workspace]
+resolver = "2"
+members = ["spikes/windows-gpui"]

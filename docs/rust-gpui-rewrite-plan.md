@@ -332,6 +332,24 @@ Build throwaway apps that answer the open technical questions before any real po
 Exit: record the results here, pin the GPUI revision (and the Android backend's, if used), decide the web storage
 option (SQLite-wasm vs IndexedDB), and mark Android as GPUI or Compose.
 
+
+#### Phase 0 results so far
+
+**Item 1, GPUI on Windows** (spike in `spikes/windows-gpui/`, GPUI pinned at `zed-industries/zed` rev `a701d985`, no
+patches; full table in that folder's README):
+
+* Upstream GPUI at this revision has an AccessKit-based accessibility API (roles, labels, numeric values, accessible
+  actions), so the plan's doubt about whether it exists at all is settled: it does, and on Windows it surfaces through
+  UI Automation. The spike's window exposed a labelled Edit, Slider (0..100, `RangeValue`), Image and List/ListItems.
+* Gaps seen through UI Automation: the slider's `SetValue` and the text field's `ValuePattern.SetValue` are accepted
+  but do nothing; the text field has no `TextPattern` (no caret/selection reading); the list has no
+  `Scroll`/`Selection` patterns and only the visible rows exist as nodes. Under "no local patches" these could only be
+  worked around in our own elements.
+* **The Narrator pass was skipped by the maintainer**, so the accessibility bar is *not* verified on Windows. The
+  release blocker in "Decisions" ("verified per platform") still stands and has to be met before the Windows app
+  ships; it is just no longer a gate for continuing Phase 0.
+* Release build numbers (spike only): 10.3 MB executable, ~0.7 s cold start to a visible window, ~2% of one core idle
+  with the record spinning, 63 MB memory with the 5k-row list, flat while scrolling.
 ### Phase 1: `beatseam-core`, `beatseam-api`, `beatseam-audio` (no UI)
 
 Port in dependency order, porting the matching Vitest tests along with each module (the tests are the spec):
