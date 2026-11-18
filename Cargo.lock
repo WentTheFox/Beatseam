@@ -525,6 +525,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "beatseam-app"
+version = "0.0.0"
+dependencies = [
+ "beatseam-api",
+ "beatseam-core",
+ "beatseam-server-mode",
+]
+
+[[package]]
 name = "beatseam-core"
 version = "0.0.0"
 dependencies = [
@@ -538,7 +547,9 @@ version = "0.0.0"
 dependencies = [
  "beatseam-api",
  "beatseam-core",
+ "serde",
  "serde_json",
+ "url",
 ]
 
 [[package]]
