@@ -533,6 +533,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "beatseam-server-mode"
+version = "0.0.0"
+dependencies = [
+ "beatseam-api",
+ "beatseam-core",
+ "serde_json",
+]
+
+[[package]]
 name = "beatseam-spike-parity-compare"
 version = "0.0.0"
 dependencies = [
