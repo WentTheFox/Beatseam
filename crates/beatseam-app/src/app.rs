@@ -62,7 +62,35 @@ pub trait LibraryJobs {
     fn scan_metadata(&self, tracks: Vec<TrackRecord>, priority_file_ids: Rc<dyn Fn() -> Vec<String>>);
     /// Checks in with the server. `Some(changed)` once it did, `None` when there is no server connection at all.
     fn sync_server(&self) -> impl std::future::Future<Output = Option<bool>>;
+    /// Every track under `root_id` that no playlist references (a server library answers from the store; a folder library walks
+    /// the root, persisting the tracks it discovers, and queues their metadata read).
+    fn find_unplaylisted(&self, root_id: &str, root_display_name: &str) -> impl std::future::Future<Output = Result<Vec<TrackRecord>, String>>;
+
+    /// Whether the person's own playlists (server mode) can be edited.
+    fn user_playlists_active(&self) -> bool {
+        false
+    }
+    fn user_playlist_create(&self, _name: &str, _file_ids: &[String]) -> impl std::future::Future<Output = Result<PlaylistRecord, String>> {
+        async { Err(UNSUPPORTED.to_owned()) }
+    }
+    fn user_playlist_add(&self, _id: &str, _file_ids: &[String], _at_start: bool) -> impl std::future::Future<Output = Result<PlaylistRecord, String>> {
+        async { Err(UNSUPPORTED.to_owned()) }
+    }
+    fn user_playlist_remove(&self, _id: &str, _file_ids: &[String]) -> impl std::future::Future<Output = Result<PlaylistRecord, String>> {
+        async { Err(UNSUPPORTED.to_owned()) }
+    }
+    fn user_playlist_set(&self, _id: &str, _file_ids: &[String]) -> impl std::future::Future<Output = Result<PlaylistRecord, String>> {
+        async { Err(UNSUPPORTED.to_owned()) }
+    }
+    fn user_playlist_rename(&self, _id: &str, _name: &str) -> impl std::future::Future<Output = Result<PlaylistRecord, String>> {
+        async { Err(UNSUPPORTED.to_owned()) }
+    }
+    fn user_playlist_delete(&self, _id: &str) -> impl std::future::Future<Output = Result<(), String>> {
+        async { Err(UNSUPPORTED.to_owned()) }
+    }
 }
+
+const UNSUPPORTED: &str = "Editing your own playlists isn't available without a server";
 
 pub struct AppConfig<F, BF, S, E: AudioEngine + 'static, R: Runtime + 'static, J> {
     pub store: Rc<Store<AppState>>,
@@ -87,9 +115,12 @@ pub struct AppConfig<F, BF, S, E: AudioEngine + 'static, R: Runtime + 'static, J
     pub on_synced_setting: Option<Rc<dyn Fn(&str, &str)>>,
 }
 
-struct Inner<F, BF, S, E: AudioEngine + 'static, R: Runtime + 'static, J> {
-    config: AppConfig<F, BF, S, E, R, J>,
-    lyrics: LyricsLoader<BF, S>,
+pub(crate) struct Inner<F, BF, S, E: AudioEngine + 'static, R: Runtime + 'static, J> {
+    pub(crate) config: AppConfig<F, BF, S, E, R, J>,
+    pub(crate) lyrics: LyricsLoader<BF, S>,
+    /// Makes notification ids unique within a session.
+    pub(crate) id_counter: Cell<u64>,
+    pub(crate) notification_actions: crate::notifications::NotificationActions,
     /// Bumped by every playback patch: a delayed write that finds it moved on gives up (a newer patch's own write carries the full
     /// merged state, so nothing is lost).
     write_epoch: Cell<u64>,
@@ -97,7 +128,7 @@ struct Inner<F, BF, S, E: AudioEngine + 'static, R: Runtime + 'static, J> {
 
 /// The services and the store together: every async operation the screens trigger is a method on this. Cloning shares it.
 pub struct App<F, BF, S, E: AudioEngine + 'static, R: Runtime + 'static, J> {
-    inner: Rc<Inner<F, BF, S, E, R, J>>,
+    pub(crate) inner: Rc<Inner<F, BF, S, E, R, J>>,
 }
 
 impl<F, BF, S, E: AudioEngine + 'static, R: Runtime + 'static, J> Clone for App<F, BF, S, E, R, J> {
@@ -130,18 +161,23 @@ where
                 });
             }
         });
-        Self { inner: Rc::new(Inner { config, lyrics, write_epoch: Cell::new(0) }) }
+        Self { inner: Rc::new(Inner { config, lyrics, id_counter: Cell::new(0), notification_actions: Default::default(), write_epoch: Cell::new(0) }) }
+    }
+
+    /// The callbacks behind notification rows' secondary actions.
+    pub fn notification_actions(&self) -> &crate::notifications::NotificationActions {
+        &self.inner.notification_actions
     }
 
     pub fn store(&self) -> &Rc<Store<AppState>> {
         &self.inner.config.store
     }
 
-    fn cfg(&self) -> &AppConfig<F, BF, S, E, R, J> {
+    pub(crate) fn cfg(&self) -> &AppConfig<F, BF, S, E, R, J> {
         &self.inner.config
     }
 
-    fn spawn(&self, future: impl std::future::Future<Output = ()> + 'static) {
+    pub(crate) fn spawn(&self, future: impl std::future::Future<Output = ()> + 'static) {
         self.cfg().runtime.spawn(Box::pin(future));
     }
 
@@ -271,7 +307,7 @@ where
         }
     }
 
-    fn took_over(&self) -> bool {
+    pub(crate) fn took_over(&self) -> bool {
         self.cfg().store.read(|s| s.restore.user_took_over)
     }
 

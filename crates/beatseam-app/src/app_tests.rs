@@ -45,6 +45,8 @@ struct JobLog {
     lyrics_matches: Vec<(usize, usize)>,
     callbacks: Option<LyricsMatchCallbacks>,
     sync_calls: usize,
+    user_playlists_active: bool,
+    user_ops: Vec<String>,
 }
 
 struct FakeJobs {
@@ -77,6 +79,38 @@ impl LibraryJobs for FakeJobs {
     async fn sync_server(&self) -> Option<bool> {
         self.log.borrow_mut().sync_calls += 1;
         self.sync_result.get()
+    }
+    fn user_playlists_active(&self) -> bool {
+        self.log.borrow().user_playlists_active
+    }
+    async fn user_playlist_create(&self, name: &str, file_ids: &[String]) -> Result<beatseam_core::library_store::PlaylistRecord, String> {
+        self.log.borrow_mut().user_ops.push(format!("create {name} {}", file_ids.join(",")));
+        let record = beatseam_core::library_store::PlaylistRecord { id: "user:new".into(), root_id: "root-1".into(), file_id: "user:new".into(), name: name.into(), track_file_ids: file_ids.to_vec() };
+        self.store.upsert_playlist(record.clone()).await.map_err(|e| e.to_string())?;
+        Ok(record)
+    }
+    async fn user_playlist_add(&self, id: &str, file_ids: &[String], at_start: bool) -> Result<beatseam_core::library_store::PlaylistRecord, String> {
+        self.log.borrow_mut().user_ops.push(format!("add {id} {} {at_start}", file_ids.join(",")));
+        Ok(beatseam_core::library_store::PlaylistRecord { id: id.into(), root_id: "root-1".into(), file_id: id.into(), name: id.into(), track_file_ids: vec![] })
+    }
+    async fn user_playlist_remove(&self, id: &str, file_ids: &[String]) -> Result<beatseam_core::library_store::PlaylistRecord, String> {
+        self.log.borrow_mut().user_ops.push(format!("remove {id} {}", file_ids.join(",")));
+        Ok(beatseam_core::library_store::PlaylistRecord { id: id.into(), root_id: "root-1".into(), file_id: id.into(), name: id.into(), track_file_ids: vec![] })
+    }
+    async fn user_playlist_set(&self, id: &str, file_ids: &[String]) -> Result<beatseam_core::library_store::PlaylistRecord, String> {
+        self.log.borrow_mut().user_ops.push(format!("set {id} {}", file_ids.join(",")));
+        Ok(beatseam_core::library_store::PlaylistRecord { id: id.into(), root_id: "root-1".into(), file_id: id.into(), name: id.into(), track_file_ids: file_ids.to_vec() })
+    }
+    async fn user_playlist_rename(&self, id: &str, name: &str) -> Result<beatseam_core::library_store::PlaylistRecord, String> {
+        self.log.borrow_mut().user_ops.push(format!("rename {id} {name}"));
+        Ok(beatseam_core::library_store::PlaylistRecord { id: id.into(), root_id: "root-1".into(), file_id: id.into(), name: name.trim().into(), track_file_ids: vec![] })
+    }
+    async fn user_playlist_delete(&self, id: &str) -> Result<(), String> {
+        self.log.borrow_mut().user_ops.push(format!("delete {id}"));
+        Ok(())
+    }
+    async fn find_unplaylisted(&self, root_id: &str, _name: &str) -> Result<Vec<beatseam_core::library_store::TrackRecord>, String> {
+        beatseam_core::library_scan::find_unplaylisted_tracks(&*self.file_access, &*self.store, root_id, None).await.map_err(|e| e.to_string())
     }
 }
 
@@ -643,3 +677,6 @@ fn block_on_pool<T: 'static>(f: &Fixture, future: Pin<Box<dyn Future<Output = T>
     f.settle();
     handle.take().expect("finished")
 }
+
+#[path = "app_actions_tests.rs"]
+mod actions;
