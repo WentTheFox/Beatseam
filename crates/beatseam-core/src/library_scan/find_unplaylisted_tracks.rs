@@ -290,4 +290,31 @@ mod tests {
         assert_eq!(ids, ["loose-1.mp3", "loose-2.mp3"]);
         assert_eq!(store.snapshot_tracks().len(), 5);
     }
+
+    #[test]
+    fn the_queued_variant_returns_the_tracks_and_a_metadata_pass_that_reads_their_tags() {
+        use crate::metadata::{ImmediateIdle, MetadataService, ParsedTags};
+        use crate::tasks::test_executor::Pool;
+
+        type Tags = fn(&[u8]) -> Option<ParsedTags>;
+        fn tags(bytes: &[u8]) -> Option<ParsedTags> {
+            std::str::from_utf8(bytes).ok()?.strip_prefix("title=").map(|t| ParsedTags { title: Some(t.into()), ..Default::default() })
+        }
+        let fa = Arc::new(MemoryFileAccess::new([("Loose Track.mp3", "title=Loose")]));
+        let store = Arc::new(MemoryLibraryStore::new());
+        let service = Arc::new(MetadataService::new(fa.clone(), store.clone(), Arc::new(tags as Tags)));
+        let queue = TaskQueue::new(|| 0);
+        let pool = Pool::new();
+        let (q, f, s) = (queue.clone(), fa.clone(), store.clone());
+        let found = pool.spawn(async move { find_unplaylisted_tracks_queued(&q, &*f, &*s, "root-1", "Music", service, Arc::new(ImmediateIdle)).await });
+        pool.run_until_stalled();
+        let UnplaylistedTracks { tracks, metadata_pass } = found.take().expect("finished").unwrap();
+        assert_eq!(tracks.iter().map(|t| t.file_id.as_str()).collect::<Vec<_>>(), ["Loose Track.mp3"]);
+        assert!(block_on(store.get_metadata("Loose Track.mp3")).unwrap().is_none(), "nothing reads tags until the pass is polled");
+        let pass = pool.spawn(metadata_pass);
+        pool.run_until_stalled();
+        assert_eq!(pass.take().expect("finished"), Ok(()));
+        let metadata = block_on(store.get_metadata("Loose Track.mp3")).unwrap().expect("tags read");
+        assert_eq!(metadata.title.as_deref(), Some("Loose"));
+    }
 }
