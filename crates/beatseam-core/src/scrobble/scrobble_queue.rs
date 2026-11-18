@@ -1,6 +1,7 @@
 use serde_json::Value;
 
 use super::lastfm::ScrobbleEntry;
+use crate::js_compat::js_number;
 
 /// Cap on how many failed scrobbles get held for retry - Last.fm's own `track.scrobble` batch limit is 50 per call, so
 /// this just needs to comfortably outlast a stretch of being offline without growing the persisted settings value
@@ -35,25 +36,6 @@ pub fn decode_scrobble_queue(raw: Option<&str>) -> Vec<ScrobbleEntry> {
         Ok(Value::Array(items)) => items.iter().filter_map(decode_entry).collect(),
         _ => Vec::new(),
     }
-}
-
-/// `String(n)` for a finite number, the way JavaScript prints it: shortest round-trip digits, no fraction on integers,
-/// and exponent form below 1e-6 and from 1e21 up (`1e-7`, `1.5e+21`). (`JSON.stringify` writes `null` for NaN/Infinity;
-/// durations never are, so this maps them to `null` too.)
-fn js_number(n: f64) -> String {
-    if !n.is_finite() {
-        return "null".into();
-    }
-    if n == 0.0 {
-        return "0".into();
-    }
-    if n.abs() >= 1e21 || n.abs() < 1e-6 {
-        let formatted = format!("{n:e}"); // e.g. "1.5e-7", "1e21"
-        let (mantissa, exponent) = formatted.split_once('e').expect("exponent form");
-        let sign = if exponent.starts_with('-') { "" } else { "+" };
-        return format!("{mantissa}e{sign}{exponent}");
-    }
-    format!("{n}")
 }
 
 /// `JSON.stringify(entries)`: same key order as the TypeScript (`artist`, `track`, `timestamp`, `album`,

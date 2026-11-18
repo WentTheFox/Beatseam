@@ -20,6 +20,31 @@ pub fn js_round(x: f64) -> f64 {
     (x + 0.5).floor()
 }
 
+/// `String(n)` for a finite number, the way JavaScript prints it: shortest round-trip digits, no fraction on integers,
+/// and exponent form below 1e-6 and from 1e21 up (`1e-7`, `1.5e+21`). (`JSON.stringify` writes `null` for NaN/Infinity;
+/// durations never are, so this maps them to `null` too.)
+pub fn js_number(n: f64) -> String {
+    if !n.is_finite() {
+        return "null".into();
+    }
+    if n == 0.0 {
+        return "0".into();
+    }
+    if n.abs() >= 1e21 || n.abs() < 1e-6 {
+        let formatted = format!("{n:e}"); // e.g. "1.5e-7", "1e21"
+        let (mantissa, exponent) = formatted.split_once('e').expect("exponent form");
+        let sign = if exponent.starts_with('-') { "" } else { "+" };
+        return format!("{mantissa}e{sign}{exponent}");
+    }
+    format!("{n}")
+}
+
+/// Compares strings the way JavaScript's default `Array.prototype.sort` does: by UTF-16 code unit, which differs from
+/// Rust's byte-wise (code point) order only when a supplementary-plane character meets a high BMP one.
+pub fn js_string_cmp(a: &str, b: &str) -> std::cmp::Ordering {
+    a.encode_utf16().cmp(b.encode_utf16())
+}
+
 /// An approximation of `String.prototype.localeCompare` (the default-locale ICU collation) for sorting display text.
 /// Real collation needs Unicode collation data (ICU4X's `icu_collator` is the Rust way and can replace this behind the
 /// same signature); this covers what the TypeScript's sorts rely on in practice:
@@ -67,6 +92,21 @@ mod tests {
             .collect();
         let actual: Vec<u32> = (0..=0xffffu32).filter(|c| char::from_u32(*c).is_some_and(js_is_whitespace)).collect();
         assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn numbers_print_like_javascript() {
+        for (n, s) in [(0.0, "0"), (-0.0, "0"), (200.0, "200"), (200.5, "200.5"), (0.1 + 0.2, "0.30000000000000004"), (1e-7, "1e-7"), (1.5e-7, "1.5e-7"), (1e21, "1e+21"), (123456789.123, "123456789.123"), (1e20, "100000000000000000000"), (f64::NAN, "null")] {
+            assert_eq!(js_number(n), s, "{n}");
+        }
+    }
+
+    #[test]
+    fn string_order_is_by_utf16_code_unit() {
+        // U+FF5E (a BMP character) sorts after U+1F600 (surrogates D83D DE00) in JS, but before it by code point.
+        assert_eq!(js_string_cmp("～", "😀"), std::cmp::Ordering::Greater);
+        assert_eq!("～".cmp("😀"), std::cmp::Ordering::Less);
+        assert_eq!(js_string_cmp("a", "b"), std::cmp::Ordering::Less);
     }
 
     #[test]
