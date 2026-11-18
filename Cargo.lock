@@ -534,6 +534,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "beatseam-audio"
+version = "0.0.0"
+dependencies = [
+ "beatseam-core",
+ "hound",
+ "symphonia",
+]
+
+[[package]]
 name = "beatseam-core"
 version = "0.0.0"
 dependencies = [
