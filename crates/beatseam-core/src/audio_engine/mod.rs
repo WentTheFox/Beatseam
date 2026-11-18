@@ -11,6 +11,9 @@ use std::sync::Arc;
 use crate::audio::DecodedAudio;
 use crate::file_access::FileRef;
 
+#[cfg(any(test, feature = "test-support"))]
+pub mod fake;
+
 /// A linear ramp automation, mirroring the Web Audio `AudioParam` shape the playback code actually needs.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct RampSpec {
@@ -24,14 +27,14 @@ pub struct RampSpec {
 pub trait SourceNode {
     fn id(&self) -> &str;
     fn set_gain(&self, value: f64);
-    fn ramp_gain(&self, ramp: RampSpec);
+    fn ramp_gain(&self, ramp: RampSpec) -> Result<(), EngineError>;
     /// Schedules an arbitrary gain curve (evenly-spaced sample values) over `[at_time_seconds, at_time_seconds +
     /// duration_seconds)`, via the engine's native curve automation - used for the crossfade's equal-power fade, since a
     /// single linear ramp can't express that shape (and several back-to-back ramps don't work either: each call anchors
     /// itself to the *current* live gain value at call time, not to where an in-flight scheduled ramp would be by then).
-    fn ramp_gain_curve(&self, values: &[f64], at_time_seconds: f64, duration_seconds: f64);
+    fn ramp_gain_curve(&self, values: &[f64], at_time_seconds: f64, duration_seconds: f64) -> Result<(), EngineError>;
     fn set_rate(&self, value: f64);
-    fn ramp_rate(&self, ramp: RampSpec);
+    fn ramp_rate(&self, ramp: RampSpec) -> Result<(), EngineError>;
     fn stop(&self, when_seconds: Option<f64>);
 }
 
@@ -40,6 +43,19 @@ pub trait SourceNode {
 pub struct EngineTrackAnalysis {
     pub normalization_gain: f64,
 }
+
+/// An engine call was rejected (a scheduling conflict on a parameter that already has something scheduled on it, a non-finite
+/// offset, a bad engine state). The playback code treats these as recoverable, never as a reason to crash.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct EngineError(pub String);
+
+impl fmt::Display for EngineError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(&self.0)
+    }
+}
+
+impl std::error::Error for EngineError {}
 
 /// Why a file could not be decoded.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -87,7 +103,7 @@ pub trait AudioEngine {
 
     /// Schedules playback to start at an engine-clock time (seconds), beginning at `offset_seconds` into the decoded buffer -
     /// for sample-accurate overlap and for resuming/seeking mid-track.
-    fn schedule_start(&self, source: &Self::Source, when_seconds: f64, offset_seconds: f64);
+    fn schedule_start(&self, source: &Self::Source, when_seconds: f64, offset_seconds: f64) -> Result<(), EngineError>;
 
     /// The engine's current transport clock, in seconds.
     fn now(&self) -> f64;
