@@ -934,3 +934,7 @@ impl<S: LibraryStore + 'static, T: HttpTransport + Clone + 'static, R: OfflineRu
         Ok(())
     }
 }
+
+#[cfg(test)]
+#[path = "server_mode_tests.rs"]
+mod server_mode_tests;
