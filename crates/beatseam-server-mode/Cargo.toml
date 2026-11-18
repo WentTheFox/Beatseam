@@ -9,3 +9,6 @@ description = "Server mode: sync into the local library, the offline mutation qu
 beatseam-core = { path = "../beatseam-core" }
 beatseam-api = { path = "../beatseam-api" }
 serde_json = "1"
+
+[dev-dependencies]
+beatseam-core = { path = "../beatseam-core", features = ["test-support"] }

@@ -5,8 +5,9 @@ mod abort;
 mod gate;
 mod queue;
 mod yield_now;
-#[cfg(test)]
-pub(crate) mod test_executor;
+#[cfg(any(test, feature = "test-support"))]
+#[doc(hidden)]
+pub mod test_executor;
 
 pub use abort::{AbortHandle, AbortSignal, Aborted, abortable};
 pub use gate::Gate;
