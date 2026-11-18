@@ -2,14 +2,18 @@
 //! per-track analysis). Synchronous on purpose: the TypeScript yields to the event loop between steps, which in Rust
 //! is the caller's job (run it on a worker thread or an executor).
 
+mod analyze_library;
 mod analyze_track;
 mod bpm;
+mod ensure_analyzed;
 mod loudness;
 mod mono;
 mod silence;
 
+pub use analyze_library::{AnalyzeProgress, analyze_library};
 pub use analyze_track::{ANALYSIS_ALGORITHM_VERSION, TrackAnalysis, analyze_track};
 pub use bpm::{BpmEstimate, estimate_bpm};
+pub use ensure_analyzed::{ensure_track_analyzed, ensure_track_analyzed_with_engine, is_analysis_fresh};
 pub use loudness::{compute_normalization_gain, measure_loudness_db};
 pub use mono::mix_to_mono;
 pub use silence::{ContentBounds, find_content_bounds};
