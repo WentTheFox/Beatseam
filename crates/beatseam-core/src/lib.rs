@@ -12,6 +12,7 @@ pub mod file_access;
 pub mod http;
 pub mod lyrics;
 pub mod metadata;
+pub mod offline;
 pub mod playlist;
 pub mod scrobble;
 pub mod tasks;
