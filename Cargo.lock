@@ -543,6 +543,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "beatseam-cli"
+version = "0.0.0"
+dependencies = [
+ "beatseam-audio",
+ "beatseam-core",
+ "beatseam-native",
+ "cpal",
+ "hound",
+]
+
+[[package]]
 name = "beatseam-core"
 version = "0.0.0"
 dependencies = [
