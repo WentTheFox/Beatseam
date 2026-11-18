@@ -1,11 +1,16 @@
 use std::collections::HashSet;
+use std::future::Future;
+use std::pin::Pin;
+use std::sync::Arc;
 
 use super::audio_files::is_audio_file_name;
 use super::error::LibraryError;
 use super::walk::walk_directory;
 use crate::file_access::FileAccess;
+use crate::http::HttpTransport;
+use crate::metadata::{CoverArtResizer, IdleScheduler, MetadataError, MetadataService, MetadataTask, TagReader, scan_library_metadata_queued};
 use crate::library_store::{LibraryStore, StoreError, TrackRecord};
-use crate::tasks::TaskProgress;
+use crate::tasks::{TaskOptions, TaskPriority, TaskProgress, TaskQueue};
 
 /// Every track under `root_id` that no current playlist references - the "songs not in a playlist" library-wide view.
 /// Two different things land in this list, both handled here:
@@ -91,6 +96,59 @@ pub async fn find_unplaylisted_tracks_in_store<S: LibraryStore>(store: &S, root_
     let tracks = store.list_tracks(root_id).await?;
     let referenced: HashSet<&str> = playlists.iter().flat_map(|p| p.track_file_ids.iter().map(String::as_str)).collect();
     Ok(tracks.into_iter().filter(|t| !t.missing && !referenced.contains(t.file_id.as_str())).collect())
+}
+
+/// What [`find_unplaylisted_tracks_queued`] returns: the tracks, plus the metadata pass to run for them.
+pub struct UnplaylistedTracks {
+    pub tracks: Vec<TrackRecord>,
+    /// Reads tags for the tracks found: tracks found here for the first time have never had theirs read, and the
+    /// library-wide metadata pass only covers tracks that existed when it started. Not awaited here - the caller spawns it
+    /// on its executor, or drops it to skip. As `Visible` work it takes turns with that pass instead of racing it for the
+    /// same files, but goes ahead of it (it pauses at its next track), so what is on screen fills in first. Already-fresh
+    /// tracks are skipped without a read.
+    pub metadata_pass: Pin<Box<dyn Future<Output = Result<(), MetadataError>>>>,
+}
+
+/// [`find_unplaylisted_tracks`] as a `Foreground` task on the shared queue - waits for any folder scan in progress,
+/// pauses background metadata/lyrics passes while it walks, and shows its progress in the notification bell. The metadata
+/// service may read through a different file access than the walk (e.g. web's non-prompting background wrapper, since
+/// nothing user-initiated is behind that pass).
+pub async fn find_unplaylisted_tracks_queued<F, S, MF, MS, T, H, R, I>(
+    queue: &TaskQueue,
+    file_access: &F,
+    store: &S,
+    root_id: &str,
+    root_display_name: &str,
+    metadata: Arc<MetadataService<MF, MS, T, H, R>>,
+    idle: Arc<I>,
+) -> Result<UnplaylistedTracks, LibraryError>
+where
+    F: FileAccess,
+    S: LibraryStore,
+    MF: FileAccess + 'static,
+    MS: LibraryStore + 'static,
+    T: TagReader + 'static,
+    H: HttpTransport + 'static,
+    R: CoverArtResizer + 'static,
+    I: IdleScheduler + 'static,
+{
+    let options = TaskOptions::new(format!("unplaylisted-{root_id}"), format!("Finding songs not in a playlist in \"{root_display_name}\""), TaskPriority::Foreground);
+    let tracks = queue
+        .run_task(options, |context| async move {
+            let mut report = |p: TaskProgress| context.report_progress(p);
+            find_unplaylisted_tracks(file_access, store, root_id, Some(&mut report)).await
+        })
+        .await?;
+    let task = MetadataTask {
+        id: format!("metadata-unplaylisted-{root_id}"),
+        label: format!("Reading tags for songs not in a playlist in \"{root_display_name}\""),
+        priority: TaskPriority::Visible,
+        join_key: String::new(),
+    };
+    let pass_queue = queue.clone();
+    let pass_tracks = tracks.clone();
+    let metadata_pass = Box::pin(async move { scan_library_metadata_queued(&pass_queue, task, metadata, idle, pass_tracks, false, None, None).await });
+    Ok(UnplaylistedTracks { tracks, metadata_pass })
 }
 
 #[cfg(test)]

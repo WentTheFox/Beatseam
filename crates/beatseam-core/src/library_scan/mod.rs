@@ -19,7 +19,7 @@ pub use create_playlist_from_folder::{PlaylistCandidateTrack, PlaylistSortCriter
 pub use delete_root_data::{delete_root_library_data, prune_orphaned_root_data};
 pub use edit_playlist_tracks::{MovePosition, find_playlist_file, move_playlist_tracks, remove_playlist_tracks};
 pub use error::LibraryError;
-pub use find_unplaylisted_tracks::{find_unplaylisted_tracks, find_unplaylisted_tracks_in_store};
+pub use find_unplaylisted_tracks::{UnplaylistedTracks, find_unplaylisted_tracks, find_unplaylisted_tracks_in_store, find_unplaylisted_tracks_queued};
 pub use load_root_library::{LoadRootLibraryOptions, LoadedRoot, load_root_library};
 pub use relocate_missing_track::relocate_missing_track;
 pub use scan_coordinator::{ScanCoordinator, ScanSubscription, describe_scan_progress};
