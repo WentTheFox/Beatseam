@@ -140,6 +140,11 @@ impl<S: LibraryStore + 'static, A: MutationSender + 'static> MutationQueue<S, A>
         MutationQueueState { pending: inner.queue.len(), flushing: inner.flushing.is_some(), rejected: inner.rejected.clone() }
     }
 
+    /// What is waiting to be sent, oldest first.
+    pub fn pending_mutations(&self) -> Vec<MutationDto> {
+        self.shared.inner.lock().unwrap().queue.clone()
+    }
+
     /// Calls `listener` on every change. Returns an id for [`unsubscribe`](Self::unsubscribe).
     pub fn subscribe(&self, listener: impl Fn(&MutationQueueState) + 'static) -> u64 {
         let mut inner = self.shared.inner.lock().unwrap();
