@@ -73,6 +73,15 @@ impl PlaybackSliceState {
         self.coarse = coarse;
     }
 
+    /// Takes an already-computed coarse state, applying it only if it differs. Returns whether anything changed.
+    pub fn sync_if_changed_to(&mut self, coarse: CoarsePlayback) -> bool {
+        if coarse == self.coarse {
+            return false;
+        }
+        self.synced(coarse);
+        true
+    }
+
     /// Mirrors the player's state in only when its coarse part actually changed - so the ~5 Hz position ticks never touch the
     /// store. Returns whether anything changed.
     pub fn sync_if_changed(&mut self, player: &PlaylistPlayerState) -> bool {

@@ -528,9 +528,9 @@ dependencies = [
 name = "beatseam-app"
 version = "0.0.0"
 dependencies = [
- "beatseam-api",
  "beatseam-core",
  "beatseam-server-mode",
+ "futures-util",
 ]
 
 [[package]]

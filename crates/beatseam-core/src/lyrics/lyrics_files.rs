@@ -114,12 +114,12 @@ fn translation_file_name(native_name: &str) -> Option<String> {
 pub struct LyricsLoader<F, S> {
     file_access: Arc<F>,
     store: Arc<S>,
-    now_ms: Arc<dyn Fn() -> u64 + Send + Sync>,
+    now_ms: Arc<dyn Fn() -> u64>,
     cache: Mutex<HashMap<String, (Vec<LyricsFileRef>, u64)>>,
 }
 
 impl<F: FileAccess, S: LibraryStore> LyricsLoader<F, S> {
-    pub fn new(file_access: Arc<F>, store: Arc<S>, now_ms: impl Fn() -> u64 + Send + Sync + 'static) -> Self {
+    pub fn new(file_access: Arc<F>, store: Arc<S>, now_ms: impl Fn() -> u64 + 'static) -> Self {
         Self { file_access, store, now_ms: Arc::new(now_ms), cache: Mutex::new(HashMap::new()) }
     }
 

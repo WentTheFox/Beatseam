@@ -7,7 +7,7 @@ description = "The app layer: state slices and the actions that drive them, shar
 
 [dependencies]
 beatseam-core = { path = "../beatseam-core" }
-beatseam-api = { path = "../beatseam-api" }
+futures-util = { version = "0.3", default-features = false, features = ["alloc"] }
 
 [dev-dependencies]
 beatseam-server-mode = { path = "../beatseam-server-mode" }
