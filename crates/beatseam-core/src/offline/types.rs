@@ -1,6 +1,5 @@
 use std::fmt;
 use std::future::Future;
-use std::pin::Pin;
 
 use crate::tasks::AbortSignal;
 
@@ -71,12 +70,7 @@ pub trait OfflineSource {
 }
 
 /// Spawning, timers and the clock, supplied by the host (the library itself is runtime-free).
-pub trait OfflineRuntime {
-    /// Runs `future` to completion in the background.
-    fn spawn(&self, future: Pin<Box<dyn Future<Output = ()>>>);
-    fn sleep(&self, millis: u64) -> Pin<Box<dyn Future<Output = ()>>>;
-    fn now_ms(&self) -> u64;
-}
+pub use crate::tasks::Runtime as OfflineRuntime;
 
 /// A track kept for offline play.
 #[derive(Clone, Debug, PartialEq, Eq)]
