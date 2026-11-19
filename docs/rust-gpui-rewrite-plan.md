@@ -9,7 +9,7 @@ React Native apps keep shipping until each platform's Rust app reaches parity.
 * One Rust codebase for the client apps on **Android, Windows and web**. Desktop Linux and macOS come along almost for
   free, since they are GPUI's best-supported targets.
 * Share as much code as possible: playback, crossfade, analysis, library/playlist/lyrics logic, server-mode sync,
-  scrobbling, and the view models (what each screen shows and which actions it offers). The rendering layer is shared
+  and the view models (what each screen shows and which actions it offers). The rendering layer is shared
   where GPUI qualifies (see "Decisions"); everywhere else only rendering is per platform, never logic. Per-platform
   code should otherwise be limited to thin adapters (file access, OS media controls, secret storage, background
   execution), the same way `apps/mobile/src/adapters/*` works today but smaller.
@@ -51,12 +51,12 @@ Settled with the maintainer (November 2026):
 
 | Area | Today | Size |
 | --- | --- | --- |
-| `packages/core` | Playback (`PlaylistPlayer`, `TrackPlayer`, preload scheduler), crossfade planning, BPM/loudness/silence analysis, library scan, m3u8, lyrics matching/LRC, metadata (jsmediatags), offline library, scrobbling, Discord presence protocol, server mode (sync, mutation queue), Redux store | ~21k lines TS, 59 test files (~9.6k lines) |
+| `packages/core` | Playback (`PlaylistPlayer`, `TrackPlayer`, preload scheduler), crossfade planning, BPM/loudness/silence analysis, library scan, m3u8, lyrics matching/LRC, metadata (jsmediatags), offline library, Discord presence protocol, server mode (sync, mutation queue), Redux store | ~21k lines TS, 59 test files (~9.6k lines) |
 | `packages/ui` | Shared React Native components and hooks (library, now playing, lyrics editor/sync, settings, server, onboarding) | ~13k lines |
 | `packages/api` | zod schemas for the `/api/v1` wire format, `API_VERSION` | ~1.2k lines |
 | `apps/mobile` | RN app for Android + react-native-windows; adapters per platform; Kotlin native modules (SAF file access, offline downloads, keystore, background ticks, Discord binder RPC, app update); C++/WinRT modules on Windows (audio engine, file access, cover resizer) | `App.tsx` ~1.3k lines + ~2.3k adapters + native |
 | `apps/web` | Vite + react-native-web; Web Audio engine, File System Access API, IndexedDB, OPFS offline backend, Media Session | `App.tsx` ~1.3k lines + ~2.7k adapters |
-| `apps/server` | NestJS 11 + Prisma 7 on Postgres (27 models, 11 migrations); auth (argon2 passwords, passkeys/WebAuthn, TOTP, recovery codes, sessions + CSRF, device-code grants, invites); library scan + job queue; ffmpeg decode + analysis in worker threads; sync change feed, mutations, user playlists/settings/playback state; lyrics serving/editing/reports; Last.fm proxy (session sealed with AES-256-GCM); account pages (`public/`); legacy `/api/roots` + `/library` routes; sharp for covers | ~4.7k lines + 20 Vitest suites, mostly black-box over HTTP |
+| `apps/server` | NestJS 11 + Prisma 7 on Postgres (27 models, 11 migrations); auth (argon2 passwords, passkeys/WebAuthn, TOTP, recovery codes, sessions + CSRF, device-code grants, invites); library scan + job queue; ffmpeg decode + analysis in worker threads; sync change feed, mutations, user playlists/settings/playback state; lyrics serving/editing/reports; account pages (`public/`); legacy `/api/roots` + `/library` routes; sharp for covers | ~4.7k lines + 20 Vitest suites, mostly black-box over HTTP |
 
 Platform seams that already exist and map directly onto Rust traits: `AudioEngine` (`packages/core/src/audio-engine/types.ts`),
 `FileAccess` (`packages/core/src/file-access/types.ts`), `LibraryStore` (`packages/core/src/library-store/types.ts`),
@@ -170,7 +170,7 @@ gain curves, `now()`), so `PlaylistPlayer`/`TrackPlayer`/preload scheduling port
 | File access (`FileAccess`) | `std::fs` + native folder picker (`rfd`) | `std::fs` under `MANAGE_EXTERNAL_STORAGE`, as the current app already does (no SAF; verified in Phase 0 item 4) | File System Access API via `web-sys`; server-backed access unchanged |
 | Library store (`LibraryStore`) | `rusqlite` (bundled) | `rusqlite` (bundled) | SQLite-wasm on OPFS (`opfs-sahpool` VFS, in a worker), chosen in Phase 0: see "Phase 0 results so far" |
 | Offline downloads backend | files on disk | files on disk (existing native streaming+hashing logic ported to Rust, `sha2`) | OPFS (port of `apps/web/src/adapters/offlineBackend.ts`) |
-| HTTP (`ApiClient`, Last.fm, update check) | `reqwest` (rustls) | `reqwest` (rustls) | `reqwest`'s wasm backend (`fetch`) |
+| HTTP (`ApiClient`, update check) | `reqwest` (rustls) | `reqwest` (rustls) | `reqwest`'s wasm backend (`fetch`) |
 | Secret storage (device token) | Windows Credential Manager / Secret Service / Keychain via `keyring` | Android Keystore via JNI (`BeatseamSecretStoreModule.kt`) | cookie session (unchanged) |
 | OS media controls | `souvlaki` (SMTC on Windows, MPRIS, macOS Now Playing) | `MediaSession` + foreground service in Kotlin, driven over JNI | Media Session API via `web-sys` |
 | Discord rich presence | named pipe / Unix socket IPC (`discord-ipc-0`), protocol from `richPresence.ts` ported to core | existing Kotlin binder module over JNI | not supported (as today) |
@@ -208,7 +208,7 @@ stays possible during the transition.
 | Database | Prisma 7 (`schema.prisma`, 11 migrations) | `sqlx` (Postgres, compile-time checked queries). The existing migrations become the baseline; `sqlx` takes over from a migration that is a no-op on an up-to-date database, and Prisma's `_prisma_migrations` table is left alone so a rollback still works. |
 | Passwords | `@node-rs/argon2` | `argon2` crate. Both store PHC strings, so existing hashes verify unchanged (covered by a test with hashes produced by the TS server). |
 | Tokens, TOTP, recovery codes | `node:crypto` | `sha2`, `hmac`, `rand`, `subtle`: same formats (base64url tokens, SHA-256 hex at rest) |
-| Secret box (Last.fm session at rest) | AES-256-GCM, key via HKDF-SHA256 (`beatseam-secret-box` salt) | `aes-gcm` + `hkdf`, byte-compatible; tested against values sealed by the TS server |
+| Secret box (sealed values at rest) | AES-256-GCM, key via HKDF-SHA256 (`beatseam-secret-box` salt) | `aes-gcm` + `hkdf`, byte-compatible; tested against values sealed by the TS server |
 | Passkeys | `@simplewebauthn/server` | `webauthn-rs`. Stored credentials must stay usable: verify the stored public key/counter format against real registrations made by the TS server before switching. |
 | Throttling | `@nestjs/throttler` + `failureLimiter` | `tower_governor` + a port of the failure limiter |
 | Scheduling, job queue | `@nestjs/schedule`, `jobQueue.ts`, worker threads | tokio tasks + a bounded worker pool (`spawn_blocking`/rayon) for decode/analysis |
@@ -487,7 +487,7 @@ Port in dependency order, porting the matching Vitest tests along with each modu
 
 1. Pure logic: `playlist` (m3u8, reorder), `lyrics` (LRC parse/format, matching, translation merge), `metadata`
    helpers (durations, titles, content hash), `crossfade` (transition plan, equal-power gain, visualization),
-   `analysis` (BPM, loudness, silence), `scrobble` (queue, tracker, md5/Last.fm signing), `discord` protocol,
+   `analysis` (BPM, loudness, silence), `discord` protocol,
    `tasks` (task queue), `appUpdate`.
 2. `beatseam-api` types + `ApiClient` + contract tests against the zod schemas/fixtures.
 3. `library-scan`, `library-store` traits, `offline` (`OfflineLibrary`), `server-mode` (sync, mutation queue, device
@@ -510,11 +510,11 @@ real server. Useful for debugging forever after, and proof that core works witho
    so it is known-good.
 2. `beatseam-server` on the existing schema: config, health, auth (passwords, sessions + CSRF, TOTP, recovery codes,
    invites, device-code grants, passkeys), then library/tracks/covers/audio streaming (including range requests),
-   sync + mutations + user data, lyrics (serving, editing, reports), Last.fm, scanner + job queue, account pages,
+   sync + mutations + user data, lyrics (serving, editing, reports), scanner + job queue, account pages,
    static web hosting.
 3. Before the switch, remove `fileAccess.server.ts`/`fileAccess.composite.ts` from the TS web app (the legacy
    `/api/roots` + `/library` routes are not ported) and ship that, so no client calls them any more.
-4. Compatibility tests specific to the switch: verify password hashes, sealed Last.fm sessions, device tokens and
+4. Compatibility tests specific to the switch: verify password hashes, sealed secrets, device tokens and
    passkeys created by the TS server, and switch a copy of a real database back and forth between the two images.
 5. Ship as the Docker image once the whole conformance suite passes. Keep the TS image buildable for one release as
    the rollback path.
@@ -534,7 +534,7 @@ qualified it). Keep the Kotlin modules that are already Kotlin (MediaSession, Di
 and call them directly from the Kotlin side; SAF file access and offline downloads move behind the Rust `FileAccess`
 trait. Compose screenshot tests join the parity suite. Install side by side with the release build (separate
 application id suffix, as the debug build does today) until parity, then switch the release pipeline. Verify live on
-the test phone: backgrounded playback, media notification, Discord, Last.fm, offline downloads, lyrics sync gestures,
+the test phone: backgrounded playback, media notification, Discord, offline downloads, lyrics sync gestures,
 and a full TalkBack pass.
 
 ### Phase 4: web
