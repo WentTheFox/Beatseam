@@ -1,0 +1,14 @@
+[package]
+name = "beatseam-app"
+version = "0.0.0"
+edition = "2024"
+publish = false
+description = "The app layer: state slices and the actions that drive them, shared by every UI."
+
+[dependencies]
+beatseam-core = { path = "../beatseam-core" }
+beatseam-server-mode = { path = "../beatseam-server-mode" }
+futures-util = { version = "0.3", default-features = false, features = ["alloc"] }
+
+[dev-dependencies]
+beatseam-core = { path = "../beatseam-core", features = ["test-support"] }

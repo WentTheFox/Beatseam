@@ -1,0 +1,11 @@
+[package]
+name = "beatseam-spike-windows-audio"
+version = "0.0.0"
+edition = "2024"
+publish = false
+description = "Phase 0 spike: symphonia decoding + cpal output + our own equal-power crossfade mixer. Throwaway."
+
+[dependencies]
+cpal = "0.18"
+symphonia = { version = "0.6", features = ["mp3", "flac", "aac", "isomp4", "ogg", "vorbis", "wav", "pcm"] }
+hound = "3.5"

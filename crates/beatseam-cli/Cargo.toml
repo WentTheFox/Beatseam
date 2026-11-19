@@ -1,0 +1,21 @@
+[package]
+name = "beatseam-cli"
+version = "0.0.0"
+edition = "2024"
+publish = false
+description = "Debug CLI for the Rust core: scan a folder, play a playlist with crossfades, or render it offline to a WAV."
+
+[[bin]]
+name = "beatseam"
+path = "src/main.rs"
+
+[dependencies]
+beatseam-core = { path = "../beatseam-core" }
+beatseam-audio = { path = "../beatseam-audio" }
+beatseam-native = { path = "../beatseam-native" }
+cpal = "0.18"
+hound = "3.5"
+beatseam-api = { path = "../beatseam-api" }
+beatseam-server-mode = { path = "../beatseam-server-mode" }
+ureq = "3"
+getrandom = "0.3"

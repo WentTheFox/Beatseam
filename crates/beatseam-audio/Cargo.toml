@@ -1,0 +1,14 @@
+[package]
+name = "beatseam-audio"
+version = "0.0.0"
+edition = "2024"
+publish = false
+description = "The audio engine: symphonia decoding and our own sample-accurate mixer behind the AudioEngine trait. No output device here - hosts pull rendered frames."
+
+[dependencies]
+beatseam-core = { path = "../beatseam-core" }
+symphonia = { version = "0.6", features = ["mp3", "flac", "aac", "isomp4", "ogg", "vorbis", "wav", "pcm"] }
+
+[dev-dependencies]
+beatseam-core = { path = "../beatseam-core", features = ["test-support"] }
+hound = "3.5"

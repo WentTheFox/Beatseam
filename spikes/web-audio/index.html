@@ -1,0 +1,68 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>web-audio spike</title>
+<script>
+  const FADE_AT = 5, FADE = 3, SECS = 10;
+  const wasmBytes = fetch('mixer.wasm').then((r) => r.arrayBuffer());
+
+  async function makeNode(ctx) {
+    await ctx.audioWorklet.addModule('processor.js');
+    return new AudioWorkletNode(ctx, 'mixer', {
+      outputChannelCount: [2],
+      processorOptions: { bytes: await wasmBytes, rate: ctx.sampleRate, secs: SECS, fadeAt: FADE_AT, fade: FADE },
+    });
+  }
+
+  // Offline render through the worklet, checked against the same equal-power formula in JS.
+  window.offline = async () => {
+    const rate = 48000, total = 12;
+    const ctx = new OfflineAudioContext(2, rate * total, rate);
+    const node = await makeNode(ctx);
+    node.connect(ctx.destination);
+    const buf = await ctx.startRendering();
+    const L = buf.getChannelData(0);
+    const fs = FADE_AT * rate, fl = FADE * rate;
+    let maxErr = 0, peak = 0;
+    const rms = (a, b) => Math.sqrt(L.slice(a, b).reduce((s, v) => s + v * v, 0) / (b - a));
+    for (let n = 0; n < L.length; n++) {
+      const t = Math.min(Math.max((n - fs) / fl, 0), 1);
+      const ga = Math.cos(t * Math.PI / 2), gb = Math.sin(t * Math.PI / 2);
+      const a = n < SECS * rate ? 0.5 * Math.sin(2 * Math.PI * 220 * n / rate) : 0;
+      const b = n >= fs && n - fs < SECS * rate ? 0.5 * Math.sin(2 * Math.PI * 330 * (n - fs) / rate) : 0;
+      maxErr = Math.max(maxErr, Math.abs(L[n] - (a * ga + b * gb)));
+      peak = Math.max(peak, Math.abs(L[n]));
+    }
+    // 1 s windows around the fade: equal power means the loudness should not dip or bump.
+    const win = [3, 4, 5, 6, 7, 8, 9].map((s) => `${s}s:${rms(s * rate, (s + 1) * rate).toFixed(3)}`);
+    return { maxErr, peak, frames: L.length, rms: win.join(' ') };
+  };
+
+  // Cost of one quantum on the main thread, as a stand-in for the worklet (which has no performance.now).
+  window.bench = async () => {
+    const x = new WebAssembly.Instance(new WebAssembly.Module(await wasmBytes), {}).exports;
+    const e = x.engine_new(48000, 60, 20, 6);
+    const q = 20000; // 53 s of audio
+    const t = performance.now();
+    for (let i = 0; i < q; i++) x.engine_render(e);
+    const ms = performance.now() - t;
+    return { quanta: q, totalMs: ms, perQuantumUs: (ms * 1000) / q, budgetUs: (128 / 48000) * 1e6 };
+  };
+
+  // Realtime context, plus a main-thread interval to show what background throttling does to timers.
+  let ctx, node, ticks = 0, last;
+  setInterval(() => ticks++, 100);
+  window.start = async () => {
+    ctx = new AudioContext({ latencyHint: 'interactive' });
+    node = await makeNode(ctx);
+    node.connect(ctx.destination);
+    await ctx.resume();
+    return { rate: ctx.sampleRate, state: ctx.state, baseLatency: ctx.baseLatency, outputLatency: ctx.outputLatency };
+  };
+  window.probe = () => new Promise((resolve) => {
+    node.port.onmessage = (m) => resolve({
+      vis: document.visibilityState, state: ctx.state, ctxTime: ctx.currentTime, ...m.data,
+      timerTicks: ticks,
+    });
+    node.port.postMessage(0);
+  });
+</script>

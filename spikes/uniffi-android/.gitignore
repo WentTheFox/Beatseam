@@ -1,0 +1,5 @@
+android/app/src/main/jniLibs/
+android/app/src/main/java/uniffi/
+android/.gradle/
+android/build/
+android/app/build/

@@ -1,0 +1,9 @@
+[package]
+name = "beatseam-spike-parity-web"
+version = "0.0.0"
+edition = "2024"
+publish = false
+description = "Phase 0 spike, item 6: the Leptos (DOM) twin of the GPUI fixture, rendered to static HTML. Throwaway."
+
+[dependencies]
+leptos = { version = "0.8", features = ["ssr"] }

@@ -1,0 +1,10 @@
+[package]
+name = "beatseam-spike-parity-compare"
+version = "0.0.0"
+edition = "2024"
+publish = false
+description = "Phase 0 spike, item 6: perceptual comparison (SSIM) of two screenshots, with a diff image. Throwaway."
+
+[dependencies]
+image = { version = "0.25", default-features = false, features = ["png"] }
+image-compare = "0.5"

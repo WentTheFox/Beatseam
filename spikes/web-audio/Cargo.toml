@@ -1,0 +1,21 @@
+[package]
+name = "beatseam-spike-web-audio"
+version = "0.0.0"
+edition = "2024"
+publish = false
+description = "Phase 0 spike, item 3 (web half): the Rust crossfade mixer running in an AudioWorklet. Throwaway."
+
+# Its own project (wasm32 only), not part of the root workspace.
+[workspace]
+
+[lib]
+crate-type = ["cdylib"]
+
+# No dependencies on purpose: a plain wasm module with no imports can be instantiated inside an
+# AudioWorkletGlobalScope, which has no fetch, TextDecoder or wasm-bindgen glue.
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+panic = "abort"
