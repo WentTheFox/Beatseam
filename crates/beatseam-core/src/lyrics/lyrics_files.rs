@@ -138,11 +138,10 @@ impl<F: FileAccess, S: LibraryStore> LyricsLoader<F, S> {
     pub async fn scan_all_lyrics_scopes(&self, scopes: &[LyricsScope]) -> Result<Vec<LyricsFileRef>, LibraryError> {
         let key = lyrics_scopes_cache_key(scopes);
         let now = (self.now_ms)();
-        if let Some((files, fetched_at)) = self.cache.lock().unwrap().get(&key) {
-            if now.saturating_sub(*fetched_at) < SCAN_CACHE_TTL_MS {
+        if let Some((files, fetched_at)) = self.cache.lock().unwrap().get(&key)
+            && now.saturating_sub(*fetched_at) < SCAN_CACHE_TTL_MS {
                 return Ok(files.clone());
             }
-        }
         let mut files = Vec::new();
         for scope in scopes {
             let found = scan_lyrics_root(&*self.file_access, &scope.root_id, Some(&scope.relative_path)).await?;

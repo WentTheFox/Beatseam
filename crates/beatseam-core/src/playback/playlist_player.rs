@@ -445,22 +445,20 @@ impl<E: AudioEngine + 'static, R: Runtime + 'static> PlaylistPlayer<E, R> {
         let mut seen = vec![false; track_file_ids.len()];
         let mut restored = Vec::new();
         for file_id in order_file_ids {
-            if let Some(&index) = index_by_file_id.get(file_id.as_str()) {
-                if !seen[index] {
+            if let Some(&index) = index_by_file_id.get(file_id.as_str())
+                && !seen[index] {
                     seen[index] = true;
                     restored.push(index);
                 }
-            }
         }
         let missing: Vec<usize> = (0..track_file_ids.len()).filter(|i| !seen[*i]).collect();
         let mut order = restored;
         order.extend(self.shuffle(&missing));
-        if let Some(pinned) = pinned {
-            if let Some(at) = order.iter().position(|o| *o == pinned).filter(|at| *at > 0) {
+        if let Some(pinned) = pinned
+            && let Some(at) = order.iter().position(|o| *o == pinned).filter(|at| *at > 0) {
                 order.remove(at);
                 order.insert(0, pinned);
             }
-        }
         order
     }
 
@@ -585,11 +583,10 @@ impl<E: AudioEngine + 'static, R: Runtime + 'static> PlaylistPlayer<E, R> {
             effective.clone()
         } else {
             let mut order = surviving;
-            if let (true, Some(current)) = (keep_current_alive, &current_file_id) {
-                if !order.contains(current) {
+            if let (true, Some(current)) = (keep_current_alive, &current_file_id)
+                && !order.contains(current) {
                     order.push(current.clone());
                 }
-            }
             for file_id in added {
                 let insert_at = ((self.inner.random)() * (order.len() + 1) as f64).floor() as usize;
                 order.insert(insert_at.min(order.len()), file_id);
@@ -597,7 +594,7 @@ impl<E: AudioEngine + 'static, R: Runtime + 'static> PlaylistPlayer<E, R> {
             order
         };
 
-        let order: Vec<usize> = file_id_order.iter().map(|id| effective.iter().position(|e| e == id).map_or(usize::MAX, |p| p)).collect();
+        let order: Vec<usize> = file_id_order.iter().map(|id| effective.iter().position(|e| e == id).unwrap_or(usize::MAX)).collect();
         let mut state = self.state_mut();
         if let Some(current) = &current_file_id {
             state.position = order.iter().position(|i| effective.get(*i) == Some(current)).map_or(0, |p| p as i64);

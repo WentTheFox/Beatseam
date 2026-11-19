@@ -26,7 +26,7 @@ pub fn measure_loudness_db(samples: &[f32]) -> f64 {
 pub fn compute_normalization_gain(loudness_db: f64) -> f64 {
     let gain_db = REFERENCE_LOUDNESS_DB - loudness_db;
     let gain = 10f64.powf(gain_db / 20.0);
-    gain.max(MIN_GAIN).min(MAX_GAIN)
+    gain.clamp(MIN_GAIN, MAX_GAIN)
 }
 
 #[cfg(test)]

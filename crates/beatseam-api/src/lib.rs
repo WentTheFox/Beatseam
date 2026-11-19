@@ -7,6 +7,7 @@
 //!
 //! The DTOs are plain serde structs whose JSON is identical to what the zod schemas accept and the TypeScript server
 //! produces; `tests/dto_golden.rs` checks that against the zod schemas themselves.
+#![allow(clippy::type_complexity, clippy::arc_with_non_send_sync, clippy::too_many_arguments)] // see beatseam-core's lib.rs
 
 pub mod auth;
 pub mod client;

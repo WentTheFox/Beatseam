@@ -5,6 +5,7 @@
 //! semantics (trimmed text, empty means none, multiple artists split on NUL and `/`, the first picture wins, an ID3v2.2
 //! `JPG`/`PNG` image type mapped to a MIME type) and is compared against `jsmediatags` on real files by
 //! `tests/jsmediatags_comparison.rs`.
+#![allow(clippy::type_complexity, clippy::arc_with_non_send_sync, clippy::too_many_arguments)] // see beatseam-core's lib.rs
 
 use std::io::Cursor;
 

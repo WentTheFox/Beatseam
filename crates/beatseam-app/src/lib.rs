@@ -3,6 +3,7 @@
 //! The TypeScript used Redux Toolkit; here each slice is a plain struct whose methods are its reducers, [`Store`] holds the one
 //! [`AppState`] and tells subscribers about every change, and the thunks become async functions over the services (file access,
 //! the library store, the players, server mode). Nothing in a slice does I/O, so each is tested as plain data.
+#![allow(clippy::type_complexity, clippy::arc_with_non_send_sync, clippy::too_many_arguments)] // see beatseam-core's lib.rs
 
 mod app;
 mod app_actions;

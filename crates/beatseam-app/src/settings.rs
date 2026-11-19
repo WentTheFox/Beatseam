@@ -313,17 +313,13 @@ impl SettingsPatch {
 }
 
 #[derive(Clone, Debug, PartialEq)]
+#[derive(Default)]
 pub struct SettingsState {
     pub values: AppSettings,
     /// False until the initial read from the library store resolves - `values` holds defaults until then.
     pub loaded: bool,
 }
 
-impl Default for SettingsState {
-    fn default() -> Self {
-        Self { values: AppSettings::default(), loaded: false }
-    }
-}
 
 impl SettingsState {
     /// Initial read from storage finished. Not persisted back (it came from storage). `system_theme_mode` is the first-run theme

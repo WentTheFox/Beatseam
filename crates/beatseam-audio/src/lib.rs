@@ -2,6 +2,7 @@
 //!
 //! There is no output device in here. A host (the desktop app, the CLI) opens its platform's output stream and fills it from
 //! [`MixerEngine::render`]; the same call renders offline for tests and `--render`.
+#![allow(clippy::type_complexity, clippy::arc_with_non_send_sync, clippy::too_many_arguments)] // see beatseam-core's lib.rs
 
 mod decode;
 mod engine;

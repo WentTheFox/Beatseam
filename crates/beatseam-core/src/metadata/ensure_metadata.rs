@@ -154,6 +154,8 @@ impl<F: FileAccess, S: LibraryStore, T: TagReader, H: HttpTransport, R: CoverArt
     /// file whose content changed but whose size and mtime happen not to (a sync tool preserving timestamps, e.g.). Not
     /// used by the passive background scan; only a caller with an explicit, user-initiated reason to suspect this exact
     /// file changed should set it.
+    // The lock is released (`drop(in_flight)`) before the await; clippy can't see that through the early return.
+    #[allow(clippy::await_holding_lock)]
     pub async fn ensure_track_metadata(&self, file: &FileRef, force_refresh: bool) -> Result<TrackMetadata, MetadataError> {
         let flight = {
             let mut in_flight = self.in_flight.lock().unwrap();
@@ -240,12 +242,11 @@ impl<F: FileAccess, S: LibraryStore, T: TagReader, H: HttpTransport, R: CoverArt
     /// serve them.
     async fn resolve_cover_art(&self, art: Option<CoverArtBytes>) -> Option<CoverArtBytes> {
         let CoverArtBytes { mut mime_type, mut data } = art?;
-        if data.len() > MAX_COVER_ART_BYTES {
-            if let Some((resized_mime, resized)) = self.resizer.resize(&data, &mime_type, COVER_ART_MAX_DIMENSION_PX).await {
+        if data.len() > MAX_COVER_ART_BYTES
+            && let Some((resized_mime, resized)) = self.resizer.resize(&data, &mime_type, COVER_ART_MAX_DIMENSION_PX).await {
                 mime_type = resized_mime;
                 data = resized;
             }
-        }
         (data.len() <= MAX_COVER_ART_BYTES).then_some(CoverArtBytes { mime_type, data })
     }
 

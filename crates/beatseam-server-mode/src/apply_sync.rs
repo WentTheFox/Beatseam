@@ -53,13 +53,11 @@ pub async fn apply_track<S: LibraryStore>(ctx: &ApplyContext<'_, S>, file_id: &s
     }
 
     // The file changed under the same id (the content hash differs): whatever art was cached is stale.
-    if let Some(previous) = ctx.store.get_metadata(file_id).await? {
-        if let (Some(new), Some(old)) = (&dto.content_hash, &previous.content_hash) {
-            if old != new {
+    if let Some(previous) = ctx.store.get_metadata(file_id).await?
+        && let (Some(new), Some(old)) = (&dto.content_hash, &previous.content_hash)
+            && old != new {
                 ctx.store.put_cover_art(file_id, None).await?;
             }
-        }
-    }
 
     ctx.store
         .put_metadata(TrackMetadata {

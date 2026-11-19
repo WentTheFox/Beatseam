@@ -104,7 +104,7 @@ pub fn estimate_bpm(samples: &[f32], sample_rate: f64) -> BpmEstimate {
     }
 
     let bpm = envelope_rate * 60.0 / best_lag as f64;
-    let confidence = (best_value / zero_lag_energy).max(0.0).min(1.0);
+    let confidence = (best_value / zero_lag_energy).clamp(0.0, 1.0);
     let best_phase = find_best_phase(&onset, best_lag);
     let first_beat_offset_seconds = (best_phase * ENVELOPE_HOP_SAMPLES) as f64 / sample_rate;
 
@@ -127,8 +127,8 @@ mod tests {
         while beat_time < duration_seconds {
             let start = (beat_time * SR).round() as usize;
             let end = length.min(start + (0.05 * SR).round() as usize);
-            for i in start..end {
-                out[i] = (0.8 * (2.0 * std::f64::consts::PI * 1000.0 * (i - start) as f64 / SR).sin()) as f32;
+            for (i, sample) in out.iter_mut().enumerate().take(end).skip(start) {
+                *sample = (0.8 * (2.0 * std::f64::consts::PI * 1000.0 * (i - start) as f64 / SR).sin()) as f32;
             }
             beat_time += period;
         }

@@ -201,11 +201,10 @@ pub async fn scan_root<F: FileAccess, S: LibraryStore>(
     // references, a legitimate, still-valid row, not something this cleanup should remove.
     let resolved_id_by_path: HashMap<&str, &str> = tracks.iter().map(|t| (t.relative_path.as_str(), t.file_id.as_str())).collect();
     for existing in &existing_tracks {
-        if let Some(resolved) = resolved_id_by_path.get(existing.relative_path.as_str()) {
-            if *resolved != existing.file_id {
+        if let Some(resolved) = resolved_id_by_path.get(existing.relative_path.as_str())
+            && *resolved != existing.file_id {
                 store.delete_track(&existing.file_id).await?;
             }
-        }
     }
 
     Ok(ScanResult { playlists, tracks, unresolved_entries })

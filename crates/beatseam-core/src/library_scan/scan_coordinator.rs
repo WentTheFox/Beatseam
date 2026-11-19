@@ -87,6 +87,8 @@ impl ScanCoordinator {
     /// pauses background passes (metadata, lyrics) instead of racing them; the queue is also what shows its progress and
     /// a Cancel button. `display_name` labels it there - a freshly added folder's first scan runs before the root shows up
     /// anywhere else its name could be looked up.
+    // The lock is released (`drop(state)`) before the await; clippy can't see that through the early return.
+    #[allow(clippy::await_holding_lock)]
     pub async fn scan_root_coordinated<F: FileAccess, S: LibraryStore>(&self, file_access: &F, store: &S, root_id: &str, display_name: Option<&str>) -> Result<ScanResult, LibraryError> {
         let (abort, done, result, listeners) = {
             let mut state = self.state.lock().unwrap();

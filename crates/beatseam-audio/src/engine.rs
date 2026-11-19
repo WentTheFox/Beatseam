@@ -320,11 +320,10 @@ mod tests {
             engine.poll_events();
             player.check_preload();
             pool.run_until_stalled();
-            if let Some(current) = player.get_state().current_file_id {
-                if visited.last() != Some(&current) {
+            if let Some(current) = player.get_state().current_file_id
+                && visited.last() != Some(&current) {
                     visited.push(current);
                 }
-            }
         }
         assert_eq!(visited, ["a", "b", "c"], "advanced through the playlist by itself");
         assert!(advanced.borrow().len() >= 2);

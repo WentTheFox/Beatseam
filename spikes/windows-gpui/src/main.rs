@@ -48,7 +48,7 @@ impl Spike {
     fn slider_from_x(&mut self, x: gpui::Pixels, cx: &mut Context<Self>) {
         let b = self.slider_bounds;
         if b.size.width > px(0.) {
-            let frac = f32::from((x - b.origin.x) / b.size.width) as f64;
+            let frac = ((x - b.origin.x) / b.size.width) as f64;
             self.set_slider(frac * 100.0, cx);
         }
     }

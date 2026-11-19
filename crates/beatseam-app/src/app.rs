@@ -208,15 +208,13 @@ where
         }
         let this = self.clone();
         self.spawn(async move {
-            if let Ok(synced) = persist_patch(&*this.cfg().library_store, &patch).await {
-                if (this.cfg().server_active)() {
-                    if let Some(hook) = &this.cfg().on_synced_setting {
+            if let Ok(synced) = persist_patch(&*this.cfg().library_store, &patch).await
+                && (this.cfg().server_active)()
+                    && let Some(hook) = &this.cfg().on_synced_setting {
                         for (key, value) in synced {
                             hook(key, &value);
                         }
                     }
-                }
-            }
         });
     }
 

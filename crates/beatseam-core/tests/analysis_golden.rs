@@ -33,8 +33,8 @@ fn build(r: &Value) -> Vec<f32> {
             while beat < dur {
                 let start = (beat * sr + 0.5).floor() as usize;
                 let end = length.min(start + (0.05 * sr + 0.5).floor() as usize);
-                for i in start..end {
-                    out[i] = (amp * if (((i - start) as f64 * 2.0 * 1000.0) / sr).floor() % 2.0 == 0.0 { 1.0 } else { -1.0 }) as f32;
+                for (i, sample) in out.iter_mut().enumerate().take(end).skip(start) {
+                    *sample = (amp * if (((i - start) as f64 * 2.0 * 1000.0) / sr).floor() % 2.0 == 0.0 { 1.0 } else { -1.0 }) as f32;
                 }
                 beat += period;
             }

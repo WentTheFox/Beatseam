@@ -181,11 +181,10 @@ impl<R: Runtime + 'static> PreloadScheduler<R> {
                 }
                 state.loading.remove(&id);
             }
-            if gave_up {
-                if let Some(give_up) = give_up {
+            if gave_up
+                && let Some(give_up) = give_up {
                     give_up(&id);
                 }
-            }
         }));
     }
 }

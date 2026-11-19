@@ -45,11 +45,10 @@ impl Default for RestoreState {
 impl RestoreState {
     /// Marks the previously-current step (if any) complete and makes `step` the current one.
     pub fn step_advanced(&mut self, step: RestoringStep) {
-        if let Some(current) = self.current_step {
-            if !self.completed_steps.contains(&current) {
+        if let Some(current) = self.current_step
+            && !self.completed_steps.contains(&current) {
                 self.completed_steps.push(current);
             }
-        }
         self.current_step = Some(step);
     }
 

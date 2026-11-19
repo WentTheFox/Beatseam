@@ -1,4 +1,5 @@
 //! Port of `packages/core/src/server-mode`: what the app does when its library comes from a Beatseam server.
+#![allow(clippy::type_complexity, clippy::arc_with_non_send_sync, clippy::too_many_arguments)] // see beatseam-core's lib.rs
 
 mod apply_sync;
 mod device_playback;

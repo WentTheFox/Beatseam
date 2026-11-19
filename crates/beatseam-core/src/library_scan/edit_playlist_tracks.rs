@@ -220,6 +220,6 @@ mod tests {
         let expected = Err(LibraryError::PlaylistFileNotFound { playlist_name: "Gone".into() });
         assert_eq!(mv(&fa, &p, &t, &["A.mp3"], "B.mp3", MovePosition::Before), expected);
         assert_eq!(block_on(remove_playlist_tracks(&fa, "root-1", &p, &t, &ids(&["A.mp3"]))), expected);
-        assert!(expected.unwrap_err().to_string().contains("Could not find the playlist file for \"Gone\""));
+        assert!(expected.clone().unwrap_err().to_string().contains("Could not find the playlist file for \"Gone\""));
     }
 }

@@ -85,11 +85,10 @@ impl<V: ServerLink, O: OfflineAccess> FileAccess for ServerFileAccess<V, O> {
         if let Some(stored) = self.offline.read(&file.id).await.map_err(|e| FileAccessError::Io(e.0))? {
             return Ok(stored);
         }
-        if self.offline.fetch_for_playback(&file.id).await {
-            if let Some(kept) = self.offline.read(&file.id).await.map_err(|e| FileAccessError::Io(e.0))? {
+        if self.offline.fetch_for_playback(&file.id).await
+            && let Some(kept) = self.offline.read(&file.id).await.map_err(|e| FileAccessError::Io(e.0))? {
                 return Ok(kept);
             }
-        }
         self.link.stream_bytes(&file.id).await
     }
 

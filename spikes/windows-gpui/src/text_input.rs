@@ -7,11 +7,10 @@ use std::ops::Range;
 
 use gpui::{
     App, Bounds, ClipboardItem, Role, Context, CursorStyle, ElementId, ElementInputHandler, Entity,
-    EntityInputHandler, FocusHandle, Focusable, GlobalElementId, KeyBinding, Keystroke, LayoutId,
+    EntityInputHandler, FocusHandle, Focusable, GlobalElementId, LayoutId,
     MouseButton, MouseDownEvent, MouseMoveEvent, MouseUpEvent, PaintQuad, Pixels, Point,
-    ShapedLine, SharedString, Style, TextRun, UTF16Selection, UnderlineStyle, Window, WindowBounds,
-    WindowOptions, actions, black, div, fill, hsla, opaque_grey, point, prelude::*, px, relative,
-    rgb, rgba, size, white, yellow,
+    ShapedLine, SharedString, Style, TextRun, UTF16Selection, UnderlineStyle, Window, actions, div, fill, hsla, point, prelude::*, px, relative,
+    rgb, rgba, size, white,
 };
 
 use unicode_segmentation::*;

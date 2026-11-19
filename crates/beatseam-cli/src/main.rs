@@ -5,6 +5,7 @@
 //! beatseam play   <folder> [--playlist N|name] [--crossfade S] [--volume V] [--shuffle] [--secs S]
 //! beatseam render <folder> --out out.wav [--playlist N|name] [--crossfade S] [--secs S]
 //! ```
+#![allow(clippy::type_complexity, clippy::arc_with_non_send_sync, clippy::too_many_arguments)] // see beatseam-core's lib.rs
 
 mod runtime;
 

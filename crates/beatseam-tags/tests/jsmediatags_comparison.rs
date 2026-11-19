@@ -32,7 +32,7 @@ fn sha256_hex(bytes: &[u8]) -> String {
         data.push(0);
     }
     data.extend(bit_len.to_be_bytes());
-    for chunk in data.chunks_exact(64) {
+    for chunk in data.as_chunks::<64>().0 {
         let mut w = [0u32; 64];
         for i in 0..16 {
             w[i] = u32::from_be_bytes([chunk[i * 4], chunk[i * 4 + 1], chunk[i * 4 + 2], chunk[i * 4 + 3]]);

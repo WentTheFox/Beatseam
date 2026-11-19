@@ -30,10 +30,9 @@ fn main() {
     println!("hybrid RGB score:   {:.4}", rgb.score);
     rgb.image.to_color_map().save(&diff).expect("save diff");
     println!("wrote {diff}");
-    if let Some(min) = min {
-        if gray.score < min {
+    if let Some(min) = min
+        && gray.score < min {
             eprintln!("FAIL: {:.4} < {min}", gray.score);
             std::process::exit(1);
         }
-    }
 }

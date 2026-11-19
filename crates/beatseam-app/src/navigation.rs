@@ -193,11 +193,10 @@ impl NavigationState {
     /// Reorders the open playlist immediately rather than waiting on the rescan, so the screen doesn't look unchanged until
     /// reopened (the `.m3u8` itself is already correct). A no-op if the anchor is gone or another playlist is open.
     pub fn open_playlist_tracks_moved(&mut self, playlist_id: &str, moving_file_ids: &[String], anchor_file_id: &str, position: Position) {
-        if let Some(open) = self.open_playlist_mut(playlist_id) {
-            if let Some(moved) = move_within(&open.playlist.track_file_ids, moving_file_ids, anchor_file_id, position) {
+        if let Some(open) = self.open_playlist_mut(playlist_id)
+            && let Some(moved) = move_within(&open.playlist.track_file_ids, moving_file_ids, anchor_file_id, position) {
                 open.playlist.track_file_ids = moved;
             }
-        }
     }
 
     /// Drops tracks from the open playlist immediately (a removal, or a just-added track leaving the Unplaylisted view) rather than

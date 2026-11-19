@@ -620,12 +620,11 @@ impl<S: LibraryStore + 'static, T: HttpTransport + Clone + 'static, R: OfflineRu
     /// Where the user's Last.fm link stands, from the server. The last answer is kept, so scrobbling keeps going (and
     /// queueing) while the server can't be reached; `None` when it has never been fetched.
     pub async fn last_fm_status(&self) -> Option<LastFmStatusDto> {
-        if let Some(api) = self.get_api() {
-            if let Ok(status) = api.last_fm_status().await {
+        if let Some(api) = self.get_api()
+            && let Ok(status) = api.last_fm_status().await {
                 let _ = self.cache_last_fm_status(&status).await;
                 return Some(status);
             }
-        }
         let kept = self.shared.store.get_setting(LASTFM_STATUS_KEY).await.ok().flatten()?;
         serde_json::from_str(&kept).ok()
     }

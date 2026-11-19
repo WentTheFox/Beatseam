@@ -316,7 +316,7 @@ pub fn duration_prefix_bytes_needed(prefix: &[u8], file_name: &str) -> usize {
         return DURATION_PREFIX_BYTES;
     }
     let needed = id3v2_tag_size(prefix) + MP3_FRAME_WINDOW_BYTES;
-    needed.max(DURATION_PREFIX_BYTES).min(MAX_DURATION_PREFIX_BYTES)
+    needed.clamp(DURATION_PREFIX_BYTES, MAX_DURATION_PREFIX_BYTES)
 }
 
 /// Dispatches to the right container parser by file extension. `prefix` should be up to [`DURATION_PREFIX_BYTES`] (or

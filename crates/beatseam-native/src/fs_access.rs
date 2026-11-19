@@ -241,7 +241,12 @@ mod tests {
         let library = Library::new("escape");
         std::fs::write(library.dir.join("secret.txt"), "secret").unwrap();
         let (access, root) = library.access();
-        for sneaky in ["../secret.txt", "Rock/../../secret.txt", "/etc/passwd", "C:\\Windows\\win.ini"] {
+        // A drive path is only a path escape on Windows; elsewhere `C:\...` is one ordinary file name inside the root.
+        let mut sneaky_paths = vec!["../secret.txt", "Rock/../../secret.txt", "/etc/passwd"];
+        if cfg!(windows) {
+            sneaky_paths.push("C:\\Windows\\win.ini");
+        }
+        for sneaky in sneaky_paths {
             let file = FileRef { id: format!("{}:{sneaky}", root.id), name: "x".into(), relative_path: sneaky.into(), size_bytes: 0, last_modified_ms: 0.0 };
             assert!(block_on(access.read_file_text(&file, opts())).is_err(), "{sneaky}");
             assert!(block_on(access.list_directory(&root.id, Some(sneaky), opts())).is_err(), "{sneaky}");

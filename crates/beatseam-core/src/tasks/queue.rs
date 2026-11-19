@@ -404,15 +404,14 @@ impl TaskQueue {
         let joinable = self.with(|inner, _fx, _now| {
             inner.running_passes.get(&options.id).filter(|p| p.join_key == join_key).map(|p| (p.add_items.clone(), p.done.clone()))
         });
-        if let Some((add_items, done)) = joinable {
-            if let Ok(add_items) = add_items.downcast::<Mutex<Box<dyn FnMut(&[Item]) -> bool + Send>>>() {
+        if let Some((add_items, done)) = joinable
+            && let Ok(add_items) = add_items.downcast::<Mutex<Box<dyn FnMut(&[Item]) -> bool + Send>>>() {
                 let accepted = (add_items.lock().unwrap())(&items);
                 if accepted {
                     done.wait().await;
                     return;
                 }
             }
-        }
 
         let (pass_id, done) = self.with(|inner, _fx, _now| {
             inner.next_pass += 1;

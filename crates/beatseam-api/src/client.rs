@@ -470,7 +470,8 @@ mod tests {
     impl HttpTransport for &Scripted {
         async fn send(&self, request: HttpRequest) -> Result<HttpResponse, TransportError> {
             self.sent.borrow_mut().push(request);
-            match self.answers.borrow_mut().pop_front().expect("an answer was scripted") {
+            let answer = self.answers.borrow_mut().pop_front().expect("an answer was scripted");
+            match answer {
                 Some(r) => Ok(r),
                 None => {
                     struct OnDrop(Rc<RefCell<bool>>);

@@ -34,7 +34,7 @@ fn utf16(bytes: &[u8], big_endian_default: bool) -> String {
     } else if bytes.len() >= 2 && bytes[0] == 0xfe && bytes[1] == 0xff {
         (big_endian, start) = (true, 2);
     }
-    let units: Vec<u16> = bytes[start..].chunks_exact(2).map(|p| if big_endian { u16::from_be_bytes([p[0], p[1]]) } else { u16::from_le_bytes([p[0], p[1]]) }).collect();
+    let units: Vec<u16> = bytes[start..].as_chunks::<2>().0.iter().map(|p| if big_endian { u16::from_be_bytes([p[0], p[1]]) } else { u16::from_le_bytes([p[0], p[1]]) }).collect();
     String::from_utf16_lossy(&units)
 }
 
