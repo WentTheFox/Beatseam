@@ -5,7 +5,11 @@
 //! beatseam play   <folder> [--playlist N|name] [--crossfade S] [--volume V] [--shuffle] [--secs S]
 //! beatseam render <folder> --out out.wav [--playlist N|name] [--crossfade S] [--secs S]
 //! ```
-#![allow(clippy::type_complexity, clippy::arc_with_non_send_sync, clippy::too_many_arguments)] // see beatseam-core's lib.rs
+#![allow(
+    clippy::type_complexity,
+    clippy::arc_with_non_send_sync,
+    clippy::too_many_arguments
+)] // see beatseam-core's lib.rs
 
 mod runtime;
 
@@ -29,7 +33,10 @@ use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 
 use runtime::CliRuntime;
 
-const USAGE: &str = "usage: beatseam <scan|play|render> <folder> [--playlist N|name] [--crossfade S] [--volume V] [--shuffle] [--out file.wav] [--secs S]";
+mod sync;
+mod transport;
+
+const USAGE: &str = "usage: beatseam <scan|play|render> <folder> | sync <server-url> [--db file] [--playlist N|name] [--crossfade S] [--volume V] [--shuffle] [--out file.wav] [--secs S]";
 
 struct Options {
     command: String,
@@ -83,6 +90,10 @@ fn main() {
 }
 
 fn run() -> Result<(), String> {
+    let args: Vec<String> = std::env::args().skip(1).collect();
+    if args.first().map(String::as_str) == Some("sync") {
+        return run_sync(&args[1..]);
+    }
     let options = parse()?;
     let files = Arc::new(StdFileAccess::new());
     let root = files
@@ -413,4 +424,26 @@ fn render(
         frames as f64 / f64::from(RATE)
     );
     Ok(())
+}
+
+/// `sync <server-url> [--db file]`: the database defaults to `beatseam-cli.db` in the platform's data directory.
+fn run_sync(args: &[String]) -> Result<(), String> {
+    let server = args.first().ok_or(USAGE)?;
+    let mut db: Option<PathBuf> = None;
+    let mut rest = args[1..].iter();
+    while let Some(arg) = rest.next() {
+        match arg.as_str() {
+            "--db" => db = Some(rest.next().ok_or("--db needs a value")?.into()),
+            _ => return Err(format!("unknown argument {arg}\n{USAGE}")),
+        }
+    }
+    let db = db.unwrap_or_else(|| {
+        let base = std::env::var_os("XDG_DATA_HOME")
+            .map(PathBuf::from)
+            .or_else(|| std::env::var_os("LOCALAPPDATA").map(PathBuf::from))
+            .or_else(|| std::env::var_os("HOME").map(|h| PathBuf::from(h).join(".local/share")))
+            .unwrap_or_else(|| PathBuf::from("."));
+        base.join("beatseam").join("beatseam-cli.db")
+    });
+    sync::run(server, &db)
 }

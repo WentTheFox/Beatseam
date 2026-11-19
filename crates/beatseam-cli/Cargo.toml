@@ -15,3 +15,7 @@ beatseam-audio = { path = "../beatseam-audio" }
 beatseam-native = { path = "../beatseam-native" }
 cpal = "0.18"
 hound = "3.5"
+beatseam-api = { path = "../beatseam-api" }
+beatseam-server-mode = { path = "../beatseam-server-mode" }
+ureq = "3"
+getrandom = "0.3"

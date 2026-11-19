@@ -157,3 +157,21 @@ impl Future for Sleep {
 
 #[allow(dead_code)]
 fn _assert_rc_unused(_: Rc<()>) {}
+
+/// A shared handle to the runtime, for APIs that take their runtime by value (`ServerMode`) while the host keeps driving it.
+#[derive(Clone)]
+pub struct SharedRuntime(pub Arc<CliRuntime>);
+
+impl Runtime for SharedRuntime {
+    fn spawn(&self, future: Pin<Box<dyn Future<Output = ()>>>) {
+        self.0.spawn(future)
+    }
+
+    fn sleep(&self, millis: u64) -> Pin<Box<dyn Future<Output = ()>>> {
+        self.0.sleep(millis)
+    }
+
+    fn now_ms(&self) -> u64 {
+        self.0.now_ms()
+    }
+}
